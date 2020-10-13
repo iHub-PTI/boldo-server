@@ -6,13 +6,7 @@
   "scripts": {
     "start": "node dist/server.js",
     "build": "tsc -b ./src ./scripts",
-    "dev": "nodemon -w src -e tsx,ts  -x ts-node -T --dir src ./server",
-    "seedData": "ts-node --dir scripts generateMockData.ts",
-    "seedDataProd": "node bin/scripts/generateMockData",
-    "archiveOrders": "ts-node --dir scripts archiveOrders.ts",
-    "archiveOrdersProd": "node bin/scripts/archiveOrders",
-    "migrate": "ts-node --dir scripts migrate",
-    "migrateProd": "node bin/scripts/migrate"
+    "dev": "nodemon -w src -e tsx,ts  -x ts-node -T --dir src ./server"
   },
   "dependencies": {
     "@types/compression": "^1.7.0",
@@ -22,7 +16,6 @@
     "@types/jsonwebtoken": "^8.5.0",
     "@types/node-fetch": "^2.5.7",
     "@types/socket.io": "^2.1.11",
-    "argon2": "^0.26.2",
     "compression": "^1.7.4",
     "cookie-parser": "^1.4.5",
     "cors": "^2.8.5",
