@@ -34,13 +34,32 @@ app.use(compression())
 //
 //
 // //////////////////////////////
-//            TOKENS
+//            ROUTES
 // //////////////////////////////
 //
 //
 
-
 app.get('/', (req, res) => res.send('Hello. Nice to meet you 🤖.'))
+
+app.post('/api/auth/code', (req, res) => {
+
+  res.sendStatus(200);
+})
+
+app.get('/api/doctors', (req, res) => {
+  const fakeDoctors = [
+    { id: 1, name: 'Diego King' },
+    { id: 2, name: 'Jorge Hoggs' },
+    { id: 3, name: 'Pavel Supper' },
+    { id: 4, name: 'Adam Wahn' },
+    { id: 5, name: 'Josn Cena' },
+    { id: 6, name: 'Alex Jenkins' },
+    { id: 7, name: 'Ana Benkins' },
+  ]
+  res.send({ doctors: fakeDoctors });
+})
 
 const PORT = process.env.PORT || 4000
 httpServer.listen(PORT, () => console.info(`Running on ${PORT}`))
+
+
