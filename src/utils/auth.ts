@@ -1,4 +1,4 @@
-import { Response } from 'express'
+import { Response, Request, NextFunction } from 'express'
 import jwksClient from 'jwks-rsa'
 import querystring from 'querystring'
 import fetch from 'node-fetch'
@@ -7,8 +7,6 @@ import { verify, JwtHeader, SigningKeyCallback } from 'jsonwebtoken'
 export const jwksKeycloakClient = jwksClient({
   jwksUri: `${process.env.KEYCLOAK_REALM_ADDRESS!}/protocol/openid-connect/certs`,
 })
-
-console.log('hello world')
 
 //
 //
@@ -63,7 +61,8 @@ export const verifyToken = (token: string) => {
     const options = {
       audience: ['boldo-doctor', 'boldo-patient'],
       algorithms: ['RS256'] as ['RS256'],
-      //   issuer: ['https://accounts.google.com', 'accounts.google.com'],
+      // FIXME. Ca this be REALM URL also in production?
+      // issuer: [process.env.KEYCLOAK_REALM_ADDRESS],
       // ignoreExpiration: true,
     }
 
@@ -75,5 +74,69 @@ export const verifyToken = (token: string) => {
     } catch (err) {
       reject(err)
     }
+  })
+}
+
+//
+//
+// //////////////////////////////
+//            Authentication
+// //////////////////////////////
+//
+//
+type UserType = 'doctor' | 'patient'
+
+export const auth = (roles?: UserType[]) => {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    //get the accesss token
+    const token = req.cookies['accessToken']
+
+    if (!token || typeof token !== 'string') {
+      return res.sendStatus(401)
+    }
+    try {
+      const jwt: any = await verifyToken(token)
+      if (!jwt || (roles && !roles.map(userType => `boldo-${userType}`).includes(jwt.azp))) return res.sendStatus(401)
+      res.locals.userId = jwt.preferred_username
+      res.locals.type = jwt.azp.replace('boldo-', '')
+    } catch (err) {
+      // console.log(err) // ommit as it shows errors if token is expired
+      return res.sendStatus(401)
+    }
+
+    next()
+  }
+}
+
+interface setAuthCookiesProps {
+  res: Response
+  accessToken: string
+  refreshToken: string
+  accessTokenExpireDate: Date
+  refreshTokenExpireDate: Date
+}
+
+export const setAuthCookies = ({
+  res,
+  accessToken,
+  refreshToken,
+  accessTokenExpireDate,
+  refreshTokenExpireDate,
+}: setAuthCookiesProps) => {
+  res.cookie('accessToken', accessToken, {
+    sameSite: 'lax', //process.env.NODE_ENV === 'production' ? 'none' : undefined,
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    expires: accessTokenExpireDate,
+    path: '/',
+  })
+
+  res.cookie('refreshToken', refreshToken, {
+    // Could this be strict?
+    sameSite: 'lax', //process.env.NODE_ENV === 'production' ? 'none' : undefined,
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    expires: refreshTokenExpireDate,
+    path: '/refreshtoken',
   })
 }

@@ -6,7 +6,7 @@ import cors from 'cors'
 import compression from 'compression'
 import { decode } from 'jsonwebtoken'
 
-import { getToken, verifyToken } from './utils/auth'
+import { getToken, verifyToken, auth, setAuthCookies } from './utils/auth'
 
 export const app = express()
 
@@ -35,33 +35,6 @@ app.use(compression())
 //
 //
 
-type UserType = 'doctor' | 'patient'
-
-//
-// Authentication
-//
-export const auth = (roles?: UserType[]) => {
-  return async (req: express.Request, res: express.Response, next: express.NextFunction) => {
-    //get the accesss token
-    const token = req.cookies['accessToken']
-
-    if (!token || typeof token !== 'string') {
-      return res.sendStatus(401)
-    }
-    try {
-      const jwt: any = await verifyToken(token)
-      if (!jwt || (roles && !roles.map(userType => `boldo-${userType}`).includes(jwt.azp))) return res.sendStatus(401)
-      res.locals.userId = jwt.preferred_username
-      res.locals.type = jwt.azp.replace('boldo-', '')
-    } catch (err) {
-      // console.log(err) // ommit as it shows errors if token is expired
-      return res.sendStatus(401)
-    }
-
-    next()
-  }
-}
-
 //
 //
 // //////////////////////////////
@@ -81,76 +54,93 @@ app.get('/', (req, res) => res.send('<h1>Hello, nice to meet you 🤖</h1>'))
 // GET /profile - fetch details about current user
 //
 
-const returnRedirect = (res: express.Response, type: 'success' | 'error') => {
-  if (type === 'success') res.redirect(`${process.env.CLIENT_ADDRESS}`)
-  else if (type === 'error') res.redirect(`${process.env.CLIENT_ADDRESS}/?error=Login failed`)
-  else res.sendStatus(500)
-}
-
-const returnStatus = (res: express.Response, type: 'success' | 'error') => {
-  if (type === 'success') res.sendStatus(200)
-  else if (type === 'error') res.sendStatus(400)
-  else res.sendStatus(500)
-}
-
+// Boldo Doctor returns code and tokens are generated here
 app.get('/code', async (req, res) => {
-  let { accessToken, refreshToken } = req.body
+  const error = () => res.redirect(`${process.env.CLIENT_ADDRESS}/?error=Login failed`)
+
   let { code } = req.query
 
-  let returnType = returnStatus
+  if (!code || typeof code !== 'string') return error()
 
-  // Boldo Patient is usik PKCE flow and returns tokens already
-  // Boldo Doctor returns code and tokens are generated here
-  if (code && typeof code === 'string') {
-    returnType = returnRedirect
+  try {
+    const data = await getToken({
+      client_id: 'boldo-doctor',
+      grant_type: 'authorization_code',
+      code,
+      redirect_uri: `${process.env.SERVER_ADDRESS}/code`,
+    })
 
-    try {
-      const data = await getToken({
-        client_id: 'boldo-doctor',
-        grant_type: 'authorization_code',
-        code,
-        redirect_uri: `${process.env.SERVER_ADDRESS}/code`,
-      })
+    const { access_token: accessToken, refresh_token: refreshToken } = data
 
-      accessToken = data.access_token
-      refreshToken = data.refresh_token
-    } catch (err) {
-      console.log(err)
-      returnType(res, 'error')
-    }
-  }
+    if (!accessToken || !refreshToken) return error()
 
-  if (accessToken && refreshToken) {
-    try {
-      const jwtA = await verifyToken(accessToken)
-      res.cookie('accessToken', accessToken, {
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' : undefined,
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        expires: new Date(Date.now() + (jwtA.exp - jwtA.iat) * 1000),
-        path: '/',
-      })
+    const jwtA = await verifyToken(accessToken)
+    const jwtR = decode(refreshToken) as any
 
-      const jwtR = decode(refreshToken) as any
-      res.cookie('refreshToken', refreshToken, {
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' : undefined,
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        expires: new Date(Date.now() + (jwtR.exp - jwtR.iat) * 1000),
-        path: '/refreshtoken',
-      })
-      returnType(res, 'success')
-    } catch (err) {
-      console.log(err)
-      returnType(res, 'error')
-    }
-  } else {
-    returnType(res, 'error')
+    const accessTokenExpireDate = new Date(jwtA.exp * 1000)
+    const refreshTokenExpireDate = new Date(jwtR.exp * 1000)
+
+    setAuthCookies({ res, accessToken, refreshToken, accessTokenExpireDate, refreshTokenExpireDate })
+
+    res.redirect(`${process.env.CLIENT_ADDRESS}`)
+  } catch (err) {
+    console.log(err)
+    return error
   }
 })
 
-app.get('/refreshtoken', (req, res) => {
-  res.sendStatus(200)
+// Boldo Patient is usik PKCE flow and returns tokens already
+app.post('/code', async (req, res) => {
+  let { accessToken, refreshToken } = req.body
+
+  if (!accessToken || !refreshToken) return res.sendStatus(500)
+
+  try {
+    const jwtA = await verifyToken(accessToken)
+    const jwtR = decode(refreshToken) as any
+
+    const accessTokenExpireDate = new Date(jwtA.exp * 1000)
+    const refreshTokenExpireDate = new Date(jwtR.exp * 1000)
+
+    setAuthCookies({ res, accessToken, refreshToken, accessTokenExpireDate, refreshTokenExpireDate })
+
+    res.sendStatus(200)
+  } catch (err) {
+    console.log(err)
+    res.sendStatus(500)
+  }
+})
+
+app.get('/refreshtoken', async (req, res) => {
+  const { refreshToken: oldRefreshToken } = req.cookies
+
+  if (!oldRefreshToken) return res.sendStatus(403)
+  try {
+    const jwt = decode(oldRefreshToken) as any
+
+    const data = await getToken({
+      client_id: jwt['azp'],
+      grant_type: 'refresh_token',
+      refresh_token: oldRefreshToken,
+    })
+
+    const { access_token: accessToken, refresh_token: refreshToken } = data
+
+    if (!accessToken || !refreshToken) return res.sendStatus(500)
+
+    const jwtA = await verifyToken(accessToken)
+    const jwtR = decode(refreshToken) as any
+
+    const accessTokenExpireDate = new Date(jwtA.exp * 1000)
+    const refreshTokenExpireDate = new Date(jwtR.exp * 1000)
+
+    setAuthCookies({ res, accessToken, refreshToken, accessTokenExpireDate, refreshTokenExpireDate })
+
+    res.sendStatus(200)
+  } catch (err) {
+    console.log(err)
+    return res.sendStatus(500)
+  }
 })
 
 app.get('/logout', (req, res) => {
