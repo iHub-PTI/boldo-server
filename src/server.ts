@@ -70,6 +70,8 @@ app.get('/code', async (req, res) => {
       redirect_uri: `${process.env.SERVER_ADDRESS}/code`,
     })
 
+    if (!data) return error()
+
     const { access_token: accessToken, refresh_token: refreshToken } = data
 
     if (!accessToken || !refreshToken) return error()
@@ -85,7 +87,7 @@ app.get('/code', async (req, res) => {
     res.redirect(`${process.env.CLIENT_ADDRESS}`)
   } catch (err) {
     console.log(err)
-    return error
+    return error()
   }
 })
 
