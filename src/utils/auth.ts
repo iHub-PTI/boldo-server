@@ -91,9 +91,8 @@ export const auth = (roles?: UserType[]) => {
     //get the accesss token
     const token = req.cookies['accessToken']
 
-    if (!token || typeof token !== 'string') {
-      return res.sendStatus(401)
-    }
+    if (!token || typeof token !== 'string') return res.sendStatus(401)
+
     try {
       const jwt: any = await verifyToken(token)
       if (!jwt || (roles && !roles.map(userType => `boldo-${userType}`).includes(jwt.azp))) return res.sendStatus(401)

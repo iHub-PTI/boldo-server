@@ -18,7 +18,7 @@ export const app = express()
 //
 //
 
-const AllowedOrigins = ['http://localhost:3000', 'https://boldo-web.herokuapp.com']
+const AllowedOrigins = ['http://localhost:3000', 'https://boldo.penguin.software']
 app.use(cors({ origin: AllowedOrigins, credentials: true }))
 
 app.use(express.json())
@@ -149,8 +149,25 @@ app.get('/logout', (req, res) => {
   res.sendStatus(200)
 })
 
+/**
+ * @api {get} /profile Read data of User
+ * @apiName GetProfile
+ * @apiGroup Profile
+ * @apiPermission authenticated
+ *
+ * @apiDescription Get the data for the currently authenticated User
+ *
+ * @apiParam none
+ *
+ * @apiSuccess {String} id                    The Users-ID.
+ * @apiSuccess {String} type                  The Type (Doctor or Patient).
+ * @apiSuccess {String} name                  Name of the User.
+ *
+ * @apiError   {String} message (optional)    Cause of error.
+ */
+
 app.get('/profile', auth(['doctor']), (req, res) => {
-  res.send({ type: res.locals.type, id: res.locals.userId })
+  res.send({ type: res.locals.type, id: res.locals.userId, name: 'Björn Schmidtke', email: 'bjoern@penguin.digital' })
 })
 
 //
