@@ -6,6 +6,9 @@ import cors from 'cors'
 import compression from 'compression'
 import { decode } from 'jsonwebtoken'
 
+import session from 'express-session'
+import Keycloak from 'keycloak-connect'
+
 import { getToken, verifyToken, auth, setAuthCookies } from './utils/auth'
 
 export const app = express()
@@ -34,6 +37,32 @@ app.use(compression())
 // //////////////////////////////
 //
 //
+
+let kcConfig = {
+  realm: 'iHub',
+  'auth-server-url': 'http://localhost:8080/auth/',
+  'ssl-required': 'external',
+  resource: 'boldo-doctor',
+  'public-client': true,
+  'verify-token-audience': true,
+  'use-resource-role-mappings': true,
+  'confidential-port': 0,
+}
+
+const memoryStore = new session.MemoryStore()
+app.use(
+  session({
+    secret: 'mySecret',
+    resave: false,
+    saveUninitialized: true,
+    store: memoryStore,
+  })
+)
+
+const keycloak = new Keycloak({ store: memoryStore, scope: 'offline_access' }, kcConfig)
+
+app.set('trust proxy', true)
+app.use(keycloak.middleware())
 
 //
 //
@@ -167,6 +196,10 @@ app.get('/logout', (req, res) => {
  */
 
 app.get('/profile', auth(['doctor']), (req, res) => {
+  res.send({ type: res.locals.type, id: res.locals.userId, name: 'Björn Schmidtke', email: 'bjoern@penguin.digital' })
+})
+
+app.get('/profile', keycloak.protect(), (req, res) => {
   res.send({ type: res.locals.type, id: res.locals.userId, name: 'Björn Schmidtke', email: 'bjoern@penguin.digital' })
 })
 
