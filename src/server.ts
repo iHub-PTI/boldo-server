@@ -118,17 +118,15 @@ app.get('/doctors', async (req, res) => {
 app.get('/profile/doctor', keycloak.protect(), async (req, res) => {
   try {
     const kauth = (req as any).kauth
-    console.log(kauth?.grant.access_token.token)
     const resp = await axios.get('/profile/doctor', {
       headers: {
         Authorization: `Bearer ${kauth?.grant.access_token.token}`,
       },
     })
-    console.log(resp.data)
-    res.send('Hello world')
+    res.send(resp.data)
   } catch (err) {
     console.log(err)
-    res.status(400).send({ message: 'Failed to fetch data' })
+    res.status(500).send({ message: 'Failed to fetch data' })
   }
 })
 
