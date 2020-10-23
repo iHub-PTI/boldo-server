@@ -16,7 +16,7 @@ The server exposes APIs that are consumed by the web app and the mobile app.
 3. Create a `.env` file in the project's root folder and add these contents:
 
    ```
-   SECRET = GenerateSecureServerSecret!
+   SECRET = secure_server_secret
 
    # ###################### Online ######################
    # CLIENT_ADDRESS = https://boldo.penguin.software
