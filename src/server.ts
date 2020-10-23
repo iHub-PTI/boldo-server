@@ -83,7 +83,7 @@ app.get('/me', (req, res) => {
 
   if (kauth && kauth.grant) {
     return res.format({
-      html: () => res.redirect('http://localhost:3000'),
+      html: () => res.redirect(process.env.CLIENT_ADDRESS!),
       json: () =>
         res.send({ type: 'string', id: 'string', name: 'string', email: kauth?.grant.access_token?.content?.email }),
     })
