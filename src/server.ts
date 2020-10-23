@@ -4,12 +4,11 @@ import express from 'express'
 import cookieParser from 'cookie-parser'
 import cors from 'cors'
 import compression from 'compression'
-import { decode } from 'jsonwebtoken'
-
 import session from 'express-session'
 import Keycloak from 'keycloak-connect'
 
-import { getToken, verifyToken, auth, setAuthCookies } from './utils/auth'
+import axios from 'axios'
+axios.defaults.baseURL = process.env.IHUB_ADDRESS!
 
 export const app = express()
 
@@ -23,23 +22,15 @@ export const app = express()
 
 const AllowedOrigins = ['http://localhost:3000', 'https://boldo.penguin.software']
 app.use(cors({ origin: AllowedOrigins, credentials: true }))
-
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 app.use(cookieParser())
-
 app.use(compression())
-
-app.use((req, res, next) => {
-  console.log(req.originalUrl)
-
-  next()
-})
 
 //
 //
 // //////////////////////////////
-//            Helpers
+//            Keycloak
 // //////////////////////////////
 //
 //
@@ -56,15 +47,10 @@ let kcConfig = {
 }
 
 const memoryStore = new session.MemoryStore()
-app.use(
-  session({
-    secret: 'mySecret',
-    resave: false,
-    saveUninitialized: true,
-    store: memoryStore,
-  })
-)
+app.use(session({ secret: 'mySecret', resave: false, saveUninitialized: true, store: memoryStore }))
 
+// FIXME: We should try if we can configure KC with cookies instead of sessions
+// FIXME: Enable offline_acess scope and make sure we make use of it
 const keycloak = new Keycloak(
   {
     store: memoryStore,
@@ -75,13 +61,7 @@ const keycloak = new Keycloak(
 
 app.set('trust proxy', true)
 app.use(keycloak.middleware())
-app.use((req, res, next) => {
-  if (memoryStore.all)
-    memoryStore.all((err, obj) => {
-      console.log(JSON.stringify(obj, null, 2))
-    })
-  next()
-})
+
 //
 //
 // //////////////////////////////
@@ -89,50 +69,9 @@ app.use((req, res, next) => {
 // //////////////////////////////
 //
 //
-app.get('/code', async (req, res) => {
-  let { code } = req.query
-
-  if (!code || typeof code !== 'string') return res.sendStatus(400)
-
-  try {
-    const data = await getToken({
-      client_id: 'boldo-doctor',
-      grant_type: 'authorization_code',
-      code,
-      redirect_uri: `com.penguin.boldo:/login`,
-    })
-
-    if (!data) return res.sendStatus(400)
-    console.log(data)
-    res.sendStatus(200)
-  } catch (err) {
-    console.log(err)
-    return res.sendStatus(400)
-  }
-})
-
-app.get('/cookie', async (req, res) => {
-  console.log(req.session)
-  console.log(req.sessionID)
-  res.sendStatus(200)
-})
-
-app.get('/appauth', (req, res) => {
-  console.log(req.body)
-  res.sendStatus(200)
-  // res.redirect('http://boldo.penguin.com/login');
-})
 
 app.get('/', (req, res) => {
-  console.log(req.originalUrl, 'Wow MY API')
-  console.log('YES GET')
-
   res.send('<h1>Hello, nice to meet you 🤖</h1>')
-})
-
-app.get('/profile', keycloak.protect(), (req, res) => {
-  console.log('wow we are here!')
-  res.send({ type: res.locals.type, id: res.locals.userId, name: 'Björn Schmidtke', email: 'bjoern@penguin.digital' })
 })
 
 //
@@ -141,17 +80,14 @@ app.get('/profile', keycloak.protect(), (req, res) => {
 // POST /doctors - Fetch all doctors
 //
 
-app.get('/doctors', (req, res) => {
-  const fakeDoctors = [
-    { id: 1, name: 'Diego King' },
-    { id: 2, name: 'Jorge Hoggs' },
-    { id: 3, name: 'Pavel Supper' },
-    { id: 4, name: 'Adam Wahn' },
-    { id: 5, name: 'Josn Cena' },
-    { id: 6, name: 'Alex Jenkins' },
-    { id: 7, name: 'Ana Benkins' },
-  ]
-  res.send({ doctors: fakeDoctors })
+app.get('/doctors', async (req, res) => {
+  try {
+    const resp = await axios.get('/doctors')
+    res.send({ doctors: resp.data })
+  } catch (err) {
+    console.log(err)
+    res.status(400).send({ message: 'Failed to fetch data' })
+  }
 })
 
 //
