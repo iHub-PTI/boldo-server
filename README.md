@@ -20,15 +20,11 @@ The server exposes APIs that are consumed by the web app and the mobile app.
 
    # ###################### Online ######################
    # CLIENT_ADDRESS = https://boldo.penguin.software
-   # SERVER_ADDRESS = https://api.boldo.penguin.software
-   # KEYCLOAK_REALM_ADDRESS = https://sso-test.pti.org.py/auth/realms/iHub
    # KEYCLOAK_ADDRESS = https://sso-test.pti.org.py/auth
    IHUB_ADDRESS = https://sso-test.pti.org.py/api
 
    # ###################### Local ######################
    CLIENT_ADDRESS = http://localhost:3000
-   SERVER_ADDRESS = http://localhost:8008
-   KEYCLOAK_REALM_ADDRESS = http://localhost:8080/auth/realms/iHub
    KEYCLOAK_ADDRESS = http://localhost:8080/auth
    ```
 
