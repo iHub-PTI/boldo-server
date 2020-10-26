@@ -1,4 +1,5 @@
 ---
+section: 'Boldo Server'
 title: 'Boldo API Docs'
 date: '2020-10-26T05:35:07.322Z'
 priority: 90
