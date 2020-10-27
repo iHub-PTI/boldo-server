@@ -63,6 +63,12 @@ export const keycloak = new Keycloak(
   kcConfig
 )
 
+// Never use redirects. Always send 401.
+keycloak.redirectToLogin = () => false
+keycloak.accessDenied = (req, res) => {
+  res.status(401).send({ message: createLoginUrl(req, '/login') })
+}
+
 app.set('trust proxy', true)
 app.use(keycloak.middleware())
 
@@ -78,18 +84,14 @@ app.get('/', (req, res) => {
   res.send('<h1>Hello, nice to meet you 🤖</h1>')
 })
 
-app.get('/me', (req, res) => {
+app.get('/login', keycloak.protect(), (req, res) => {
+  res.redirect(process.env.CLIENT_ADDRESS!)
+})
+
+app.get('/me', keycloak.protect(), (req, res) => {
   const kauth = (req as any).kauth
 
-  if (kauth && kauth.grant) {
-    return res.format({
-      html: () => res.redirect(process.env.CLIENT_ADDRESS!),
-      json: () =>
-        res.send({ type: 'string', id: 'string', name: 'string', email: kauth?.grant.access_token?.content?.email }),
-    })
-  }
-
-  res.status(401).send({ message: createLoginUrl(req) })
+  res.send({ type: 'string', id: 'string', name: 'string', email: kauth?.grant.access_token?.content?.email })
 })
 
 //
@@ -125,7 +127,10 @@ app.get('/profile/doctor', keycloak.protect(), async (req, res) => {
     })
     res.send(resp.data)
   } catch (err) {
+    if (err.response.status === 404) return res.send(null)
+
     console.log(err)
+
     res.status(500).send({ message: 'Failed to fetch data' })
   }
 })

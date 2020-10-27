@@ -4,7 +4,7 @@ import { keycloak } from '../server'
 
 import uuid from 'keycloak-connect/uuid'
 
-export const createLoginUrl = (req: Request) => {
+export const createLoginUrl = (req: Request, url: string) => {
   // CONSTRUCT REDIRECT URI
   const host = req.hostname
   const headerHost = req.headers?.host?.split(':') || []
@@ -17,9 +17,10 @@ export const createLoginUrl = (req: Request) => {
     '://' +
     host +
     (port === '' ? '' : ':' + port) +
-    (req.originalUrl || req.url) +
+    url + // (req.originalUrl || req.url) +
     (hasQuery ? '&' : '?') +
     'auth_callback=1'
+
   // SET REDIRECT URI TO SESSION
   // THIS IS KEY, AS KC USES THE SESSIONS's ONE
   if (req.session) {
