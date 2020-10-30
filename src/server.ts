@@ -6,10 +6,11 @@ import cors from 'cors'
 import compression from 'compression'
 import session from 'express-session'
 import Keycloak from 'keycloak-connect'
+import axios from 'axios'
 
 import { createLoginUrl } from './util/kc-helpers'
 
-import axios from 'axios'
+// We use axios for queries to the iHub Server
 axios.defaults.baseURL = process.env.IHUB_ADDRESS!
 
 export const app = express()
@@ -119,19 +120,62 @@ app.get('/doctors', async (req, res) => {
 
 app.get('/profile/doctor', keycloak.protect(), async (req, res) => {
   try {
-    const kauth = (req as any).kauth
     const resp = await axios.get('/profile/doctor', {
       headers: {
-        Authorization: `Bearer ${kauth?.grant.access_token.token}`,
+        Authorization: `Bearer ${(req as any).kauth?.grant.access_token.token}`,
+      },
+    })
+    res.send({
+      ...resp.data,
+      openHours: {
+        mon: [],
+        tue: [],
+        wed: [],
+        thu: [],
+        fri: [],
+        sat: [],
+        sun: [],
+      },
+    })
+  } catch (err) {
+    if (err.response?.status === 404) return res.send(null)
+
+    console.log(err)
+    res.status(500).send({ message: 'Failed to fetch data' })
+  }
+})
+
+app.post('/profile/doctor', keycloak.protect(), async (req, res) => {
+  const { openHours, ...ihubPayload } = req.body
+  try {
+    await axios.put(
+      '/profile/doctor',
+      { ...ihubPayload },
+      {
+        headers: {
+          Authorization: `Bearer ${(req as any).kauth?.grant.access_token.token}`,
+        },
+      }
+    )
+  } catch (err) {
+    console.log(err.response?.data || err)
+    return res.sendStatus(500)
+  }
+
+  res.sendStatus(200)
+})
+
+app.get('/specializations', keycloak.protect(), async (req, res) => {
+  try {
+    const resp = await axios.get('/specialities', {
+      headers: {
+        Authorization: `Bearer ${(req as any).kauth?.grant.access_token.token}`,
       },
     })
     res.send(resp.data)
   } catch (err) {
-    if (err.response.status === 404) return res.send(null)
-
-    console.log(err)
-
-    res.status(500).send({ message: 'Failed to fetch data' })
+    console.log(err.response?.data || err)
+    return res.sendStatus(500)
   }
 })
 
