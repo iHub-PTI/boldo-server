@@ -116,6 +116,8 @@ app.get('/doctors', async (req, res) => {
 // Protected Routes for managing profile information
 // GET /profile/doctor - Read doctor details
 // POST /profile/doctor - Update doctor details
+// GET /profile/patient - Read patient details
+// POST /profile/patient - Update patient details
 //
 
 app.get('/profile/doctor', keycloak.protect(), async (req, res) => {
@@ -138,6 +140,7 @@ app.get('/profile/doctor', keycloak.protect(), async (req, res) => {
       },
     })
   } catch (err) {
+    // FIXME: Should never return 404.
     if (err.response?.status === 404) return res.send(null)
 
     console.log(err)
@@ -158,15 +161,65 @@ app.post('/profile/doctor', keycloak.protect(), async (req, res) => {
       }
     )
   } catch (err) {
-    console.log(err.response?.data || err)
-    return res.sendStatus(500)
+    if (err.response?.data) {
+      console.log(err.response?.data)
+      return res.send(err.response.data)
+    } else {
+      console.log(err)
+      return res.sendStatus(500)
+    }
   }
 
   res.sendStatus(200)
 })
 
+app.get('/profile/patient', keycloak.protect(), async (req, res) => {
+  try {
+    const resp = await axios.get('/profile/patient', {
+      headers: {
+        Authorization: `Bearer ${(req as any).kauth?.grant.access_token.token}`,
+      },
+    })
+    res.send({ ...resp.data })
+  } catch (err) {
+    // FIXME: Should never return 404.
+    if (err.response?.status === 404) return res.send(null)
+
+    console.log(err)
+    res.status(500).send({ message: 'Failed to fetch data' })
+  }
+})
+
+app.post('/profile/patient', keycloak.protect(), async (req, res) => {
+  const payload = req.body
+  try {
+    await axios.put('/profile/patient', payload, {
+      headers: {
+        Authorization: `Bearer ${(req as any).kauth?.grant.access_token.token}`,
+      },
+    })
+  } catch (err) {
+    if (err.response?.data) {
+      console.log(err.response?.data)
+      return res.send(err.response.data)
+    } else {
+      console.log(err)
+      return res.sendStatus(500)
+    }
+  }
+
+  res.sendStatus(200)
+})
+
+//
+// Specializations:
+// Official List of Doctor Specializations
+// GET /specializations - List doctor specializations
+//
+
 app.get('/specializations', keycloak.protect(), async (req, res) => {
   try {
+    // FIXME: Should not be called /specialities but /specializations
     const resp = await axios.get('/specialities', {
       headers: {
         Authorization: `Bearer ${(req as any).kauth?.grant.access_token.token}`,
