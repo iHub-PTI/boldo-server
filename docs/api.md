@@ -1,8 +1,8 @@
 ---
-section: 'Boldo Server'
-title: 'Boldo API Docs'
+section: 'Boldo REST API'
+title: 'Overview'
 date: '2020-10-26T05:35:07.322Z'
-priority: 90
+priority: 100
 ogImage:
   url: '/img/posts/boldo-cover.png'
 ---
