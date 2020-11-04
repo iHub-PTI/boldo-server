@@ -10,6 +10,7 @@ The server exposes APIs that are consumed by the web app and the mobile app.
 1. This project has the following dependencies:
 
    - node.js (v12 or newer)
+   - mongoDB (v4.2 or newer)
 
 2. Install dependencies: `npm i`
 
@@ -17,6 +18,7 @@ The server exposes APIs that are consumed by the web app and the mobile app.
 
    ```
    SECRET = secure_server_secret
+   MONGODB_URI = mongodb://localhost:27017/boldo
 
    # ###################### Online ######################
    # CLIENT_ADDRESS = https://boldo.penguin.software
