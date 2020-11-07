@@ -1,8 +1,7 @@
 import { Request } from 'express'
+import uuid from 'keycloak-connect/uuid'
 
 import { keycloak } from '../server'
-
-import uuid from 'keycloak-connect/uuid'
 
 export const createLoginUrl = (req: Request, url: string) => {
   // CONSTRUCT REDIRECT URI
