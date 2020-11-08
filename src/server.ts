@@ -8,6 +8,7 @@ import session from 'express-session'
 import Keycloak from 'keycloak-connect'
 import axios from 'axios'
 import mongoose from 'mongoose'
+import { differenceInHours, differenceInMinutes, parseISO } from 'date-fns'
 
 import { createLoginUrl } from './util/kc-helpers'
 
@@ -253,9 +254,12 @@ app.post('/profile/patient', keycloak.protect(), async (req, res) => {
 // APPOINTMENTS:
 // Protected Routes for managing profile information
 // GET /profile/doctor/appointments - Read appointments of Doctor
+// GET /profile/doctor/appointments/openAppointments - Read appointments of Doctor that have open WaitingRoom
 // POST /profile/doctor/appointments - Create appontment for Doctor
+// DELETE /profile/doctor/appointments/:id - Delete appontment for Doctor
 //
 
+// FIXME: Should be scoped to start and end date
 app.get('/profile/doctor/appointments', keycloak.protect('realm:doctor'), async (req, res) => {
   try {
     const appointments = await Appointment.find({ doctorId: req.userId })
@@ -264,14 +268,39 @@ app.get('/profile/doctor/appointments', keycloak.protect('realm:doctor'), async 
       headers: { Authorization: `Bearer ${getAccessToken(req)}` },
     })
 
-    const FHIRAppointments = resp.data.map(event => ({ ...event, type: 'Appointment' }))
+    // FIXME: We also need a name and possibly more information such as image of patient!
 
-    // console.log([...resp.data, ...appointments])
+    const FHIRAppointments = resp.data.map(event => ({ ...event, type: 'Appointment' }))
 
     res.send([...FHIRAppointments, ...appointments])
   } catch (err) {
     // FIXME: Should never return 404.
-    if (err.response?.status === 404) return res.send(null)
+    if (err.response?.status === 404) return res.send([])
+
+    console.log(err)
+    res.status(500).send({ message: 'Failed to fetch data' })
+  }
+})
+
+app.get('/profile/doctor/appointments/openAppointments', keycloak.protect('realm:doctor'), async (req, res) => {
+  try {
+    // FIXME: Request Should be scoped to start and end date
+    const resp = await axios.get<iHub.Appointment[]>('/profile/doctor/appointments', {
+      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+    })
+
+    // FIXME: We also need a name and possibly more information such as image of patient!
+
+    const upcomingAppointments = resp.data.filter(appointment => {
+      const minutes = differenceInMinutes(parseISO(appointment.start as any), Date.now())
+      const hours = differenceInHours(parseISO(appointment.start as any), Date.now())
+      return minutes < 15 && hours > -24
+    })
+
+    res.send(upcomingAppointments)
+  } catch (err) {
+    // FIXME: Should never return 404.
+    if (err.response?.status === 404) return res.send([])
 
     console.log(err)
     res.status(500).send({ message: 'Failed to fetch data' })
@@ -311,6 +340,17 @@ app.post('/profile/doctor/appointments', keycloak.protect('realm:doctor'), async
   //     return res.sendStatus(500)
   //   }
   // }
+})
+
+app.delete('/profile/doctor/appointments/:id', keycloak.protect('realm:doctor'), async (req, res) => {
+  try {
+    await Appointment.deleteOne({ _id: req.params.id, doctorId: req.userId })
+    res.sendStatus(200)
+  } catch (error) {
+    console.log(error)
+    if (error.message) return res.status(400).send({ message: error.message })
+    res.sendStatus(500)
+  }
 })
 
 //

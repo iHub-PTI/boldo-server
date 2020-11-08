@@ -1,5 +1,9 @@
 import mongoose, { Schema, Document } from 'mongoose'
 
+// ////////////////////////////////////////////////////////////////////////////
+// !!ATTENTION!! mongoose Appointments getters return id instead of _id !!
+// ////////////////////////////////////////////////////////////////////////////
+
 export interface IAppointment extends Document {
   name: string
   start: Date
@@ -18,7 +22,21 @@ const AppointmentSchema: Schema = new Schema(
     doctorId: { type: String, required: true },
     type: { type: String, required: true },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+    toObject: {
+      transform: (doc, ret) => {
+        ret.id = ret._id
+        delete ret._id
+      },
+    },
+    toJSON: {
+      transform: (doc, ret) => {
+        ret.id = ret._id
+        delete ret._id
+      },
+    },
+  }
 )
 
 export default mongoose.model<IAppointment>('Appointment', AppointmentSchema)
