@@ -9,16 +9,10 @@ export const createLoginUrl = (req: Request, url: string) => {
   const headerHost = req.headers?.host?.split(':') || []
   const port = headerHost[1] || ''
   const protocol = req.protocol
-  const hasQuery = ~(req.originalUrl || req.url).indexOf('?')
+  const hasQuery = ~url.indexOf('?')
 
   const redirectUrl =
-    protocol +
-    '://' +
-    host +
-    (port === '' ? '' : ':' + port) +
-    url + // (req.originalUrl || req.url) +
-    (hasQuery ? '&' : '?') +
-    'auth_callback=1'
+    protocol + '://' + host + (port === '' ? '' : ':' + port) + url + (hasQuery ? '&' : '?') + 'auth_callback=1'
 
   // SET REDIRECT URI TO SESSION
   // THIS IS KEY, AS KC USES THE SESSIONS's ONE

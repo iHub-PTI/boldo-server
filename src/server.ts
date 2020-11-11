@@ -84,7 +84,7 @@ app.use((req, res, next) => {
 })
 
 const getAccessToken = (req: any) => {
-  return req.kauth?.grant.access_token.token
+  return req.kauth?.grant?.access_token?.token
 }
 
 //
@@ -103,39 +103,6 @@ app.get('/login', keycloak.protect(), (req, res) => {
   res.redirect(process.env.CLIENT_ADDRESS!)
 })
 
-// FIXME: Pull real data
-app.get('/me', keycloak.protect(), (req, res) => {
-  const kauth = (req as any).kauth
-
-  res.send({ type: 'string', id: 'string', name: 'string', email: kauth?.grant.access_token?.content?.email })
-})
-
-//
-// DOCTORS:
-// Routes for public doctor profile information
-// POST /doctors - Fetch all doctors
-//
-
-app.get('/doctors', async (req, res) => {
-  try {
-    const resp = await axios.get(`/doctors?${req.originalUrl.split('?')[1]}`)
-    res.send({ doctors: resp.data })
-  } catch (err) {
-    console.log(err)
-    res.status(400).send({ message: 'Failed to fetch data' })
-  }
-})
-
-app.get('/doctors/:id', async (req, res) => {
-  try {
-    const resp = await axios.get(`/doctors/${req.params.id}`)
-    res.send(resp.data)
-  } catch (err) {
-    console.log(err)
-    res.status(400).send({ message: 'Failed to fetch data' })
-  }
-})
-
 //
 // PROFILE:
 // Protected Routes for managing profile information
@@ -149,26 +116,12 @@ app.get('/doctors/:id', async (req, res) => {
 app.get('/profile/doctor', keycloak.protect('realm:doctor'), async (req, res) => {
   try {
     const doctor = await Doctor.findById(req.userId)
+    const openHours = doctor?.openHours || { mon: [], tue: [], wed: [], thu: [], fri: [], sat: [], sun: [] }
 
-    const openHours = doctor?.openHours || {
-      mon: [],
-      tue: [],
-      wed: [],
-      thu: [],
-      fri: [],
-      sat: [],
-      sun: [],
-    }
-
-    const resp = await axios.get('/profile/doctor', {
-      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
-    })
+    const resp = await axios.get('/profile/doctor', { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
 
     res.send({ ...resp.data, openHours })
   } catch (err) {
-    // FIXME: Should never return 404.
-    if (err.response?.status === 404) return res.send(null)
-
     console.log(err)
     res.status(500).send({ message: 'Failed to fetch data' })
   }
@@ -177,16 +130,7 @@ app.get('/profile/doctor', keycloak.protect('realm:doctor'), async (req, res) =>
 app.get('/profile/doctor/openHours', keycloak.protect('realm:doctor'), async (req, res) => {
   try {
     const doctor = await Doctor.findById(req.userId)
-
-    const openHours = doctor?.openHours || {
-      mon: [],
-      tue: [],
-      wed: [],
-      thu: [],
-      fri: [],
-      sat: [],
-      sun: [],
-    }
+    const openHours = doctor?.openHours || { mon: [], tue: [], wed: [], thu: [], fri: [], sat: [], sun: [] }
 
     res.send(openHours)
   } catch (err) {
@@ -200,9 +144,7 @@ app.post('/profile/doctor', keycloak.protect('realm:doctor'), async (req, res) =
   try {
     await Doctor.findOneAndUpdate({ _id: req.userId }, { openHours }, { upsert: true })
 
-    await axios.put('/profile/doctor', ihubPayload, {
-      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
-    })
+    await axios.put('/profile/doctor', ihubPayload, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
   } catch (err) {
     if (err.response?.data) {
       console.log(err.response?.data)
@@ -216,30 +158,13 @@ app.post('/profile/doctor', keycloak.protect('realm:doctor'), async (req, res) =
   res.sendStatus(200)
 })
 
-app.get('/profile/patient', keycloak.protect(), async (req, res) => {
-  try {
-    const resp = await axios.get('/profile/patient', {
-      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
-    })
-    res.send({ ...resp.data })
-  } catch (err) {
-    // FIXME: Should never return 404.
-    if (err.response?.status === 404) return res.send(null)
-
-    console.log(err)
-    res.status(500).send({ message: 'Failed to fetch data' })
-  }
-})
-
 app.post('/profile/patient', keycloak.protect(), async (req, res) => {
   const payload = req.body
   try {
-    await axios.put('/profile/patient', payload, {
-      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
-    })
+    await axios.put('/profile/patient', payload, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
   } catch (err) {
-    if (err.response?.data) {
-      console.log(err.response?.data)
+    if (err.response) {
+      console.log(err.response.data)
       return res.status(400).send(err.response.data)
     } else {
       console.log(err)
@@ -274,9 +199,6 @@ app.get('/profile/doctor/appointments', keycloak.protect('realm:doctor'), async 
 
     res.send([...FHIRAppointments, ...appointments])
   } catch (err) {
-    // FIXME: Should never return 404.
-    if (err.response?.status === 404) return res.send([])
-
     console.log(err)
     res.status(500).send({ message: 'Failed to fetch data' })
   }
@@ -299,27 +221,17 @@ app.get('/profile/doctor/appointments/openAppointments', keycloak.protect('realm
 
     res.send(upcomingAppointments)
   } catch (err) {
-    // FIXME: Should never return 404.
-    if (err.response?.status === 404) return res.send([])
-
     console.log(err)
     res.status(500).send({ message: 'Failed to fetch data' })
   }
 })
 
 app.post('/profile/doctor/appointments', keycloak.protect('realm:doctor'), async (req, res) => {
+  if (!req.userId) return res.sendStatus(500)
   const { type, name, start, end, description } = req.body
 
   if (type === 'PrivateEvent') {
     try {
-      // id: 'new',
-      // name: '',
-      // start: '',
-      // end: '',
-      // date: '',
-      // description: '',
-      // type: 'PrivateEvent',
-      if (!req.userId) return res.sendStatus(500)
       const appointment = await Appointment.create({ type, name, start, end, description, doctorId: req.userId })
       res.send(appointment)
     } catch (err) {
@@ -327,19 +239,6 @@ app.post('/profile/doctor/appointments', keycloak.protect('realm:doctor'), async
       return res.sendStatus(500)
     }
   }
-  // try {
-  //   await axios.post('/profile/doctor/appointments', payload, {
-  //     headers: { Authorization: `Bearer ${getAccessToken(req)}` },
-  //   })
-  // } catch (err) {
-  //   if (err.response?.data) {
-  //     console.log(err.response?.data)
-  //     return res.status(400).send(err.response.data)
-  //   } else {
-  //     console.log(err)
-  //     return res.sendStatus(500)
-  //   }
-  // }
 })
 
 app.delete('/profile/doctor/appointments/:id', keycloak.protect('realm:doctor'), async (req, res) => {
@@ -355,16 +254,12 @@ app.delete('/profile/doctor/appointments/:id', keycloak.protect('realm:doctor'),
 
 //
 // Utils:
-// Official List of Doctor Specializations
-// GET /specializations - List doctor specializations
 // GET /presigned - List doctor specializations
 //
 
-app.get('/specializations', keycloak.protect(), async (req, res) => {
+app.get('/presigned', keycloak.protect(), async (req, res) => {
   try {
-    const resp = await axios.get('/specializations', {
-      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
-    })
+    const resp = await axios.get('/s3/presigned', { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
     res.send(resp.data)
   } catch (err) {
     console.log(err.response?.data || err)
@@ -372,17 +267,49 @@ app.get('/specializations', keycloak.protect(), async (req, res) => {
   }
 })
 
-app.get('/presigned', keycloak.protect(), async (req, res) => {
+//
+// Forward all other GET endpoints:
+// EXAMPLES:
+// GET /specializations - List doctor specializations
+// GET /profile/patient - Read patient details
+// POST /profile/patient - Update patient details
+// POST /doctors - Fetch all doctors
+//
+
+app.get('*', async (req, res) => {
+  const token = getAccessToken(req)
   try {
-    const resp = await axios.get('/s3/presigned', {
-      headers: {
-        Authorization: `Bearer ${getAccessToken(req)}`,
-      },
-    })
-    res.send(resp.data)
+    const resp = await axios.get(req.originalUrl, { ...(!!token && { headers: { Authorization: `Bearer ${token}` } }) })
+    return res.send(resp.data)
   } catch (err) {
-    console.log(err.response?.data || err)
-    return res.sendStatus(500)
+    if (err.response) {
+      console.log(err.response.data)
+      if (err.response.status === 401) return res.status(401).send({ message: createLoginUrl(req, '/login') })
+      return res.status(err.response.status).send(err.response.data)
+    } else {
+      console.log(err)
+      return res.sendStatus(500)
+    }
+  }
+})
+
+app.post('*', async (req, res) => {
+  const payload = req.body || {}
+  const token = getAccessToken(req)
+  try {
+    const resp = await axios.put(req.originalUrl, payload, {
+      ...(!!token && { headers: { Authorization: `Bearer ${token}` } }),
+    })
+    return res.send(resp.data)
+  } catch (err) {
+    if (err.response) {
+      console.log(err.response.data)
+      if (err.response.status === 401) return res.status(401).send({ message: createLoginUrl(req, '/login') })
+      return res.status(err.response.status).send(err.response.data)
+    } else {
+      console.log(err)
+      return res.sendStatus(500)
+    }
   }
 })
 

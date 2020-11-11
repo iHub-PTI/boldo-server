@@ -13,12 +13,14 @@ Some endpoints are prefixed with /profile. These endpoints give special access t
 
 ## Endpoints
 
-The Profile Scope provides the following endpoints for the **Patient Resource**:
+The Profile Scope provides the following endpoints:
+
+For the **Patient Resource**:
 
 - **GET /profile/patient**
 - **POST /profile/patient**
 
-And the following endpoints for the **Doctor Resource**:
+For the **Doctor Resource**:
 
 - **Get /profile/doctor**
 - **POST /profile/doctor**
