@@ -6,7 +6,7 @@
     "moduleResolution": "node",
     "strict": true,
     "esModuleInterop": true,
-    "lib": ["es6", "es2017", "esnext.asynciterable"],
+    "lib": ["es6", "es2017", "esnext.asynciterable", "DOM"],
     "resolveJsonModule": true,
     "outDir": "../dist"
   }
