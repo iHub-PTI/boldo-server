@@ -5,8 +5,10 @@
   "main": "index.js",
   "scripts": {
     "start": "node dist/server.js",
-    "build": "tsc -b ./src",
-    "dev": "nodemon -w src -e tsx,ts  -x ts-node -T --dir src ./server"
+    "build": "tsc -b ./src ./scripts",
+    "dev": "nodemon -w src -e tsx,ts  -x ts-node -T --dir src ./server",
+    "migrateDev": "ts-node --dir scripts migrate",
+    "migrate": "node bin/scripts/migrate"
   },
   "dependencies": {
     "@types/compression": "^1.7.0",

@@ -181,6 +181,7 @@ app.post('/profile/patient', keycloak.protect(), async (req, res) => {
 // Protected Routes for managing profile information
 // GET /profile/doctor/appointments - Read appointments of Doctor
 // GET /profile/doctor/appointments/:id - Read appointment of Doctor
+// POST /profile/doctor/appointments/:id - Update appointment of Doctor
 // GET /profile/doctor/appointments/openAppointments - Read appointments of Doctor that have open WaitingRoom
 // POST /profile/doctor/appointments - Create appontment for Doctor
 // DELETE /profile/doctor/appointments/:id - Delete appontment for Doctor
@@ -267,10 +268,11 @@ app.post('/profile/doctor/appointments/:id', keycloak.protect('realm:doctor'), a
     const resp = await axios.get<iHub.Appointment>(`/profile/doctor/appointments/${req.params.id}`, {
       headers: { Authorization: `Bearer ${getAccessToken(req)}` },
     })
-    // FIXME: Check access (doctorId == userId)
-    console.log(resp.data.doctorId, req.userId)
-    // FIXME: Implement Logic
-
+    const respp = await axios.get<iHub.Appointment>(`/profile/doctor`, {
+      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+    })
+    if (resp.data.doctorId !== respp.data.id) return res.sendStatus(400)
+    await CoreAppointment.updateOne({ id: req.params.id }, { $set: { status: 'closed' } }, { upsert: true })
     res.sendStatus(200)
   } catch (err) {
     handleError(req, res, err)
@@ -295,7 +297,7 @@ app.delete('/profile/doctor/appointments/:id', keycloak.protect('realm:doctor'),
 //
 app.get('/profile/patient/appointments', keycloak.protect('realm:patient'), async (req, res) => {
   try {
-    const resp = await axios.get<iHub.Appointment[]>('/profile/doctor/appointments?include=doctor', {
+    const resp = await axios.get<iHub.Appointment[]>('/profile/patient/appointments?include=doctor', {
       headers: { Authorization: `Bearer ${getAccessToken(req)}` },
     })
 
