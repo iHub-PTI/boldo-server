@@ -1,6 +1,6 @@
 ---
 section: '/doctor'
-title: 'Boldo REST API'
+title: '/doctor'
 date: '2020-11-26T05:35:07.322Z'
 priority: 80
 ogImage:
