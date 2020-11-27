@@ -294,6 +294,8 @@ app.delete('/profile/doctor/appointments/:id', keycloak.protect('realm:doctor'),
 // APPOINTMENTS for PATIENTS:
 // Protected Routes for managing profile information
 // GET /profile/patient/appointments - Read appointments of Patient
+// POST /profile/patient/appointments - Create appontment for Patient
+
 //
 app.get('/profile/patient/appointments', keycloak.protect('realm:patient'), async (req, res) => {
   try {
@@ -318,6 +320,32 @@ app.get('/profile/patient/appointments', keycloak.protect('realm:patient'), asyn
   } catch (err) {
     console.log(err)
     res.status(500).send({ message: 'Failed to fetch data' })
+  }
+})
+
+app.post('/profile/patient/appointments', keycloak.protect(), async (req, res) => {
+  const payload = req.body
+
+  const end = new Date(payload.start)
+  end.setMinutes(end.getMinutes() + 30)
+
+  try {
+    const resp = await axios.post(
+      '/profile/patient/appointments',
+      { ...payload, end: end.toISOString().replace('Z', '-0000') },
+      {
+        headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+      }
+    )
+    res.send(resp.data)
+  } catch (err) {
+    if (err.response) {
+      console.log(err.response.data)
+      return res.status(400).send(err.response.data)
+    } else {
+      console.log(err)
+      return res.sendStatus(500)
+    }
   }
 })
 
