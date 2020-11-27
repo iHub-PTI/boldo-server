@@ -328,7 +328,9 @@ app.get('/profile/patient/appointments', keycloak.protect('realm:patient'), asyn
 //
 app.get('/doctors', async (req, res) => {
   try {
-    const resp = await axios.get<iHub.Doctor[]>('/doctors')
+    const queryString = req.originalUrl.split('?')[1]
+
+    const resp = await axios.get<iHub.Doctor[]>(`/doctors${queryString ? `?${queryString}` : ''}`)
 
     const createRandomFutureDate = () => {
       const date = new Date()
@@ -369,7 +371,6 @@ app.get('/presigned', keycloak.protect(), async (req, res) => {
 // GET /specializations - List doctor specializations
 // GET /profile/patient - Read patient details
 // POST /profile/patient - Update patient details
-// POST /doctors - Fetch all doctors
 //
 
 app.get('*', async (req, res) => {
