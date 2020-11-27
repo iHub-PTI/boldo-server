@@ -47,7 +47,9 @@ POST /profile/patient
 
 **Parameters:** Patient
 
-## **Return Value:** Patient (updated)
+**Return Value:** Patient (updated)
+
+---
 
 ### Create Appointment
 
