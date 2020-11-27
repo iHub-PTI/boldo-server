@@ -1,5 +1,5 @@
 ---
-# section: '/profile/*'
+section: '/profile/doctor'
 title: '/profile/doctor'
 date: '2020-11-26T05:35:07.322Z'
 priority: 90
