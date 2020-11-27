@@ -322,6 +322,33 @@ app.get('/profile/patient/appointments', keycloak.protect('realm:patient'), asyn
 })
 
 //
+// Doctor
+// Public Routes for searching Doctors
+// GET /doctors - Fetch and search doctors
+//
+app.get('/doctors', async (req, res) => {
+  try {
+    const resp = await axios.get<iHub.Doctor[]>('/doctors')
+
+    const createRandomFutureDate = () => {
+      const date = new Date()
+      date.setDate(date.getDate() + Math.floor(Math.random() * 10) + Math.floor(Math.random() * 10))
+      return date
+    }
+
+    const doctorsWithNextAvailability = resp.data.map(doctor => ({
+      ...doctor,
+      nextAvailability: createRandomFutureDate(),
+    }))
+
+    res.send(doctorsWithNextAvailability)
+  } catch (err) {
+    console.log(err)
+    res.sendStatus(500)
+  }
+})
+
+//
 // Utils:
 // GET /presigned - List doctor specializations
 //
