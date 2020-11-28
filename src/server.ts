@@ -360,7 +360,7 @@ app.get('/doctors', async (req, res) => {
   try {
     const queryString = req.originalUrl.split('?')[1]
 
-    const resp = await axios.get<iHub.Doctor[]>(`/doctors${queryString ? `?${queryString}` : ''}`)
+    const resp = await axios.get<{ items: iHub.Doctor[]; total: number }>(`/doctors${queryString ? `?${queryString}` : ''}`)
 
     const createRandomFutureDate = () => {
       const date = new Date()
@@ -368,7 +368,7 @@ app.get('/doctors', async (req, res) => {
       return date
     }
 
-    const doctorsWithNextAvailability = resp.data.map(doctor => ({
+    const doctorsWithNextAvailability = resp.data.items.map(doctor => ({
       ...doctor,
       nextAvailability: createRandomFutureDate(),
     }))
