@@ -28,8 +28,8 @@ export const app = express()
 // //////////////////////////////
 //
 //
-
-const AllowedOrigins = ['http://localhost:3000', 'https://boldo.penguin.software']
+const corsList = process.env.BOLDO_CORS || "http://localhost:3000"
+const AllowedOrigins = corsList.split(",")
 app.use(cors({ origin: AllowedOrigins, credentials: true }))
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
