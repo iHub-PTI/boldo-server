@@ -294,6 +294,8 @@ app.delete('/profile/doctor/appointments/:id', keycloak.protect('realm:doctor'),
 // APPOINTMENTS for PATIENTS:
 // Protected Routes for managing profile information
 // GET /profile/patient/appointments - Read appointments of Patient
+// POST /profile/patient/appointments - Create appontment for Patient
+
 //
 app.get('/profile/patient/appointments', keycloak.protect('realm:patient'), async (req, res) => {
   try {
@@ -321,14 +323,44 @@ app.get('/profile/patient/appointments', keycloak.protect('realm:patient'), asyn
   }
 })
 
+app.post('/profile/patient/appointments', keycloak.protect(), async (req, res) => {
+  const payload = req.body
+
+  const end = new Date(payload.start)
+  end.setMinutes(end.getMinutes() + 30)
+
+  try {
+    const resp = await axios.post(
+      '/profile/patient/appointments',
+      { ...payload, end: end.toISOString().replace('Z', '-0000') },
+      {
+        headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+      }
+    )
+    res.send(resp.data)
+  } catch (err) {
+    if (err.response) {
+      console.log(err.response.data)
+      return res.status(400).send(err.response.data)
+    } else {
+      console.log(err)
+      return res.sendStatus(500)
+    }
+  }
+})
+
 //
 // Doctor
 // Public Routes for searching Doctors
 // GET /doctors - Fetch and search doctors
+// GET /doctors/:id - Fetch doctor details
+// GET /doctors/:id/availability - Fetch doctor details
 //
 app.get('/doctors', async (req, res) => {
   try {
-    const resp = await axios.get<iHub.Doctor[]>('/doctors')
+    const queryString = req.originalUrl.split('?')[1]
+
+    const resp = await axios.get<iHub.Doctor[]>(`/doctors${queryString ? `?${queryString}` : ''}`)
 
     const createRandomFutureDate = () => {
       const date = new Date()
@@ -342,6 +374,47 @@ app.get('/doctors', async (req, res) => {
     }))
 
     res.send(doctorsWithNextAvailability)
+  } catch (err) {
+    console.log(err)
+    res.sendStatus(500)
+  }
+})
+
+app.get('/doctors/:id', async (req, res) => {
+  try {
+    const resp = await axios.get<iHub.Doctor>(`/doctors/${req.params.id}`)
+    res.send(resp.data)
+  } catch (err) {
+    console.log(err)
+    res.sendStatus(500)
+  }
+})
+
+app.get('/doctors/:id/availability', async (req, res) => {
+  try {
+    const resp = await axios.get<iHub.Doctor>(`/doctors/${req.params.id}`)
+    if (!resp.data) return res.status(400).send({ message: 'No Doctor with this id' })
+
+    const minutes = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55]
+    const hours = [11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23]
+
+    const createRandomAvailability = () => {
+      const date = new Date()
+      date.setDate(date.getDate() + Math.floor(Math.random() * 10) + Math.floor(Math.random() * 10))
+      date.setHours(hours[(hours.length * Math.random()) | 0])
+      date.setMinutes(minutes[(minutes.length * Math.random()) | 0])
+      date.setSeconds(0)
+      date.setMilliseconds(0)
+      return date
+    }
+
+    const availabilities = []
+
+    for (let i = 0; i <= 50; i++) {
+      availabilities.push(createRandomAvailability())
+    }
+
+    res.send({ ...resp.data, availabilities, nextAvailability: createRandomAvailability() })
   } catch (err) {
     console.log(err)
     res.sendStatus(500)
@@ -369,7 +442,6 @@ app.get('/presigned', keycloak.protect(), async (req, res) => {
 // GET /specializations - List doctor specializations
 // GET /profile/patient - Read patient details
 // POST /profile/patient - Update patient details
-// POST /doctors - Fetch all doctors
 //
 
 app.get('*', async (req, res) => {
