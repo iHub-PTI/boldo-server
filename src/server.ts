@@ -8,11 +8,13 @@ import session from 'express-session'
 import Keycloak from 'keycloak-connect'
 import axios from 'axios'
 import mongoose from 'mongoose'
-import { differenceInHours, differenceInMinutes, parseISO } from 'date-fns'
+import { addDays, differenceInDays, differenceInHours, differenceInMinutes, parseISO } from 'date-fns'
+import { param, query, validationResult } from 'express-validator'
 
 import { createLoginUrl } from './util/kc-helpers'
+import calculateOpenIntervals from '../worker/getOpenIntervals'
 
-import Doctor from './models/Doctor'
+import Doctor, { IDoctor } from './models/Doctor'
 import Appointment from './models/Appointment'
 import CoreAppointment from './models/CoreAppointment'
 
@@ -143,7 +145,8 @@ app.get('/profile/doctor/openHours', keycloak.protect('realm:doctor'), async (re
 app.post('/profile/doctor', keycloak.protect('realm:doctor'), async (req, res) => {
   const { openHours, ...ihubPayload } = req.body
   try {
-    await Doctor.findOneAndUpdate({ _id: req.userId }, { openHours }, { upsert: true })
+    const resp = await axios.get('/profile/doctor', { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    await Doctor.findOneAndUpdate({ _id: req.userId, id: resp.data.id }, { openHours }, { upsert: true })
 
     await axios.put('/profile/doctor', ihubPayload, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
   } catch (err) {
@@ -390,36 +393,115 @@ app.get('/doctors/:id', async (req, res) => {
   }
 })
 
-app.get('/doctors/:id/availability', async (req, res) => {
-  try {
-    const resp = await axios.get<iHub.Doctor>(`/doctors/${req.params.id}`)
-    if (!resp.data) return res.status(400).send({ message: 'No Doctor with this id' })
+type Interval = [number, number]
 
-    const minutes = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55]
-    const hours = [11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23]
-
-    const createRandomAvailability = () => {
-      const date = new Date()
-      date.setDate(date.getDate() + Math.floor(Math.random() * 10) + Math.floor(Math.random() * 10))
-      date.setHours(hours[(hours.length * Math.random()) | 0])
-      date.setMinutes(minutes[(minutes.length * Math.random()) | 0])
-      date.setSeconds(0)
-      date.setMilliseconds(0)
-      return date
-    }
-
-    const availabilities = []
-
-    for (let i = 0; i <= 50; i++) {
-      availabilities.push(createRandomAvailability())
-    }
-
-    res.send({ ...resp.data, availabilities, nextAvailability: createRandomAvailability() })
-  } catch (err) {
-    console.log(err)
-    res.sendStatus(500)
+// FIXME random Express Error when using req: express.Request, res: express.Response
+export function validate(req: any, res: any) {
+  const errorFormatter = ({ msg, param }: { msg: string; param: string }) => {
+    return `${param}: ${msg}`
   }
-})
+  const errors = validationResult(req).formatWith(errorFormatter)
+  if (!errors.isEmpty()) {
+    console.log(errors)
+    res.status(400).send({ message: `Validation failed! ${errors.array().join(', ')}.` })
+    return false
+  }
+  return true
+}
+
+app.get(
+  '/doctors/:id/availability',
+  param('id').isString(),
+  query(['start', 'end']).isString(),
+  async (req: express.Request, res: express.Response) => {
+    if (!validate(req, res)) return
+
+    const { start, end } = req.query
+    const { id: doctorId } = req.params
+
+    try {
+      const resp = await axios.get<iHub.Doctor>(`/doctors/${doctorId}`)
+      if (!resp.data) return res.status(400).send({ message: 'No Doctor with this id' })
+
+      // Get all the FHIR appointments
+      const respp = await axios.get<iHub.Appointment[]>(`/appointments?doctors=${doctorId}`)
+
+      // Get the doctor._id and opening hours
+      const doctor = await Doctor.findOne({ id: doctorId })
+      if (!doctor) return res.status(400).send({ message: 'This doctor has no availabilities' })
+      const openHours = doctor.openHours || { mon: [], tue: [], wed: [], thu: [], fri: [], sat: [], sun: [] }
+
+      // Get the doctors other appointments
+      const appointments = await Appointment.find({ doctorId: doctor._id })
+
+      // Transforming the data
+      const iHubAppointments = respp.data.map(appointment => [
+        Date.parse(appointment.start),
+        Date.parse(appointment.end),
+      ])
+      const boldoAppointments = appointments.map(appointment => [
+        appointment.start.getTime(),
+        appointment.end.getTime(),
+      ])
+
+      const blockedIntervals = [...boldoAppointments, ...iHubAppointments]
+
+      const calculateOpenHours = (openHours: IDoctor['openHours'], start: string, end: string) => {
+        const startDate = new Date(start)
+        const endDate = new Date(end)
+
+        // Create list of days
+        const days = differenceInDays(endDate, startDate)
+        const daysList = [...Array(days + 1).keys()].map(i => addDays(startDate, i))
+        return daysList.flatMap(day => {
+          const dayOfTheWeek = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][
+            day.getDay()
+          ] as keyof IDoctor['openHours']
+          const openHoursOfDay = openHours[dayOfTheWeek]
+
+          return openHoursOfDay.map(openHour => {
+            let localDateString = new Date(day).toLocaleString('en-US', { timeZone: 'America/Asuncion' })
+
+            let localStartDate = new Date(localDateString)
+            localStartDate.setHours(0, openHour.start, 0)
+
+            let localEndDate = new Date(localDateString)
+            localEndDate.setHours(0, openHour.end, 0)
+
+            return [localStartDate.getTime(), localEndDate.getTime()]
+          })
+        })
+      }
+
+      const openHourDates = calculateOpenHours(openHours, start as string, end as string)
+
+      const openIntervals = await calculateOpenIntervals({
+        base: openHourDates as Interval[],
+        substract: blockedIntervals as Interval[],
+      })
+      const intervalInMs = 1000 * 60 * 30 /** minutes */
+
+      const availabilities = openIntervals
+        .flatMap(interval => {
+          const intervals = [] as number[]
+          let [start, end] = interval
+          // if (distance < intervalInMs) return []
+          while (end - start >= intervalInMs) {
+            intervals.push(start)
+            start = start + intervalInMs
+          }
+          return intervals
+        })
+        .sort((a, b) => a - b)
+        .map(date => new Date(date).toISOString())
+
+      res.send({ ...resp.data, availabilities, nextAvailability: availabilities[0] })
+    } catch (err) {
+      console.log(err)
+      res.sendStatus(500)
+    }
+  }
+)
 
 //
 // Utils:

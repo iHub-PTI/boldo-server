@@ -1,6 +1,7 @@
 import mongoose, { Schema, Document } from 'mongoose'
 
 export interface IDoctor extends Document {
+  id: string
   openHours: {
     mon: { start: number; end: number }[]
     tue: { start: number; end: number }[]
@@ -15,6 +16,7 @@ export interface IDoctor extends Document {
 const DoctorSchema: Schema = new Schema(
   {
     _id: String,
+    id: { type: String, required: true },
     openHours: {
       mon: [{ start: Number, end: Number }],
       tue: [{ start: Number, end: Number }],

@@ -47,8 +47,8 @@ export interface Specialization {
 
 export interface Appointment {
   id: string
-  start: Date
-  end: Date
+  start: string
+  end: string
   patientId: Patient['id']
   doctorId: Doctor['id']
   description: string
