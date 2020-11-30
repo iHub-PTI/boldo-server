@@ -15,7 +15,13 @@ import { createLoginUrl } from './util/kc-helpers'
 import Doctor from './models/Doctor'
 import Appointment from './models/Appointment'
 import CoreAppointment from './models/CoreAppointment'
-import { calculateAvailability, handleError, validate, APPOINTMENT_LENGTH } from './util/helpers'
+import {
+  calculateAvailability,
+  handleError,
+  validate,
+  APPOINTMENT_LENGTH,
+  calculateNextAvailability,
+} from './util/helpers'
 
 // We use axios for queries to the iHub Server
 axios.defaults.baseURL = process.env.IHUB_ADDRESS!
@@ -355,16 +361,15 @@ app.get('/doctors', async (req, res) => {
       `/doctors${queryString ? `?${queryString}` : ''}`
     )
 
-    const createRandomFutureDate = () => {
-      const date = new Date()
-      date.setDate(date.getDate() + Math.floor(Math.random() * 10) + Math.floor(Math.random() * 10))
-      return date
-    }
+    // FIXME: this currently creates one worker per doctor with huge overhead.
+    // Probably best to move this into a own worker.
 
-    const doctorsWithNextAvailability = resp.data.items.map(doctor => ({
-      ...doctor,
-      nextAvailability: createRandomFutureDate(),
-    }))
+    const doctorsWithNextAvailability = await Promise.all(
+      resp.data.items.map(async doctor => ({
+        ...doctor,
+        nextAvailability: await calculateNextAvailability(doctor.id),
+      }))
+    )
 
     res.send({ items: doctorsWithNextAvailability, total: resp.data.total })
   } catch (err) {
@@ -410,7 +415,7 @@ app.get(
       const availabilities = await calculateAvailability(doctorId, startDate, endDate)
 
       // FIXME: nextAvailability is likely wrong if start date is in future
-      res.send({ availabilities, nextAvailability: availabilities[0] })
+      res.send({ availabilities, nextAvailability: await calculateNextAvailability(doctorId) })
     } catch (err) {
       handleError(req, res, err)
     }

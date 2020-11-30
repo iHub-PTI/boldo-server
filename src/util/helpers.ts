@@ -84,6 +84,21 @@ const calculateOpenHours = (openHours: IDoctor['openHours'], start: Date, end: D
   })
 }
 
+export const calculateNextAvailability = async (doctorId: string) => {
+  const startDate = new Date()
+  const endDate = new Date(startDate)
+  endDate.setDate(endDate.getDate() + 7)
+  const availabilitiesWeek = await calculateAvailability(doctorId, startDate, endDate)
+  console.log(availabilitiesWeek)
+  if (availabilitiesWeek.length > 0) return availabilitiesWeek[0]
+
+  startDate.setDate(endDate.getDate() + 7)
+  endDate.setDate(endDate.getDate() + 24)
+  const availabilitiesMonth = await calculateAvailability(doctorId, startDate, endDate)
+
+  return availabilitiesMonth
+}
+
 export const handleError = (req: express.Request, res: express.Response, err: any) => {
   console.log(err.message, err.name)
   if (err.status) {
