@@ -28,8 +28,7 @@ export const app = express()
 // //////////////////////////////
 //
 //
-const corsList = process.env.BOLDO_CORS || "http://localhost:3000"
-const AllowedOrigins = corsList.split(",")
+const AllowedOrigins = process.env.BOLDO_CORS!.split(",")
 app.use(cors({ origin: AllowedOrigins, credentials: true }))
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))

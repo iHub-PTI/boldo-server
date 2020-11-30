@@ -1,4 +1,4 @@
-FROM node:lts
+FROM node:14.15.1
 ENV PORT=8008
 RUN mkdir -p /usr/src/app
 WORKDIR /usr/src/app
