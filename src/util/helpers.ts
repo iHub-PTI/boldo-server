@@ -94,15 +94,14 @@ export const calculateNextAvailability = async (doctorId: string) => {
   const endDate = new Date(startDate)
   endDate.setDate(endDate.getDate() + 7)
   const availabilitiesWeek = await calculateAvailability(doctorId, startDate, endDate)
-  console.log(availabilitiesWeek)
   if (availabilitiesWeek.length > 0) return availabilitiesWeek[0]
 
-  startDate.setDate(endDate.getDate() + 7)
+  startDate.setDate(startDate.getDate() + 7)
   endDate.setDate(endDate.getDate() + 24)
   const availabilitiesMonth = await calculateAvailability(doctorId, startDate, endDate)
 
   if (availabilitiesMonth.length > 0) return availabilitiesMonth[0]
-  return ''
+  return null
 }
 
 export const handleError = (req: express.Request, res: express.Response, err: any) => {

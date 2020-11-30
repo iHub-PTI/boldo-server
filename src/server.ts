@@ -81,6 +81,7 @@ export const keycloak = new Keycloak(
 keycloak.redirectToLogin = () => false
 keycloak.accessDenied = (req, res) => {
   res.status(401).send({ message: createLoginUrl(req, '/login') })
+  // FIXME: Check if we should return something here
 }
 
 app.set('trust proxy', true)
@@ -424,7 +425,7 @@ app.get(
 
       if (startDate < now) startDate = now
       if (endDate < startDate)
-        res.status(400).send({ message: 'End Date has to be larger than start and in the future' })
+        return res.status(400).send({ message: 'End Date has to be larger than start and in the future' })
 
       if (differenceInDays(endDate, startDate) > 30) {
         endDate = new Date(startDate)
@@ -433,10 +434,12 @@ app.get(
 
       const availabilities = await calculateAvailability(doctorId, startDate, endDate)
 
+      const nextAvailability = await calculateNextAvailability(doctorId)
+
       // FIXME: nextAvailability is runing the whole loop again.
       // Could be done in one loop in the case that start = now
       // Also starts two workers. Could start one
-      res.send({ availabilities, nextAvailability: await calculateNextAvailability(doctorId) })
+      res.send({ availabilities, nextAvailability })
     } catch (err) {
       handleError(req, res, err)
     }
@@ -464,7 +467,7 @@ app.get('/presigned', keycloak.protect(), async (req, res) => {
 //
 
 app.get('*', async (req, res) => {
-  console.log('DELETE ME, Implement me properly!', req.baseUrl)
+  console.log('DELETE ME, Implement me properly!', req.originalUrl)
   const token = getAccessToken(req)
   try {
     const resp = await axios.get(req.originalUrl, { ...(!!token && { headers: { Authorization: `Bearer ${token}` } }) })
@@ -475,7 +478,7 @@ app.get('*', async (req, res) => {
 })
 
 app.post('*', async (req, res) => {
-  console.log('DELETE ME, Implement me properly!', req.baseUrl)
+  console.log('DELETE ME, Implement me properly!', req.originalUrl)
   const payload = req.body || {}
   const token = getAccessToken(req)
   try {
