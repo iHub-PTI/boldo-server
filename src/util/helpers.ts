@@ -1,6 +1,7 @@
 import axios from 'axios'
 import { addDays, differenceInDays } from 'date-fns'
 import express from 'express'
+import { validationResult } from 'express-validator'
 
 import { createLoginUrl } from './kc-helpers'
 import calculateOpenIntervals from '../../worker/getOpenIntervals'
@@ -9,7 +10,7 @@ import Doctor, { IDoctor } from '../models/Doctor'
 
 type Interval = [number, number]
 
-const APPOINTMENT_LENGTH = 30 /**minutes in milliseconds*/ * 1000 * 60
+export const APPOINTMENT_LENGTH = 30 /**minutes in milliseconds*/ * 1000 * 60
 
 export const calculateAvailability = async (doctorId: string, start: Date, end: Date) => {
   try {
@@ -52,7 +53,7 @@ export const calculateAvailability = async (doctorId: string, start: Date, end: 
       })
       .sort((a, b) => a - b)
       .map(date => new Date(date))
-      .filter(date => date > start && date <= end)
+      .filter(date => date >= start && date <= end)
       .map(date => date.toISOString())
 
     return availabilities
@@ -95,4 +96,18 @@ export const handleError = (req: express.Request, res: express.Response, err: an
     console.log(err)
     return res.sendStatus(500)
   }
+}
+
+// FIXME random Express Error when using req: express.Request, res: express.Response
+export function validate(req: any, res: any) {
+  const errorFormatter = ({ msg, param }: { msg: string; param: string }) => {
+    return `${param}: ${msg}`
+  }
+  const errors = validationResult(req).formatWith(errorFormatter)
+  if (!errors.isEmpty()) {
+    console.log(errors)
+    res.status(400).send({ message: `Validation failed! ${errors.array().join(', ')}.` })
+    return false
+  }
+  return true
 }

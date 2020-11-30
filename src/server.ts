@@ -9,14 +9,13 @@ import Keycloak from 'keycloak-connect'
 import axios from 'axios'
 import mongoose from 'mongoose'
 import { differenceInDays, differenceInHours, differenceInMinutes, parseISO } from 'date-fns'
-import { param, query, validationResult } from 'express-validator'
+import { param, query } from 'express-validator'
 
 import { createLoginUrl } from './util/kc-helpers'
-
 import Doctor from './models/Doctor'
 import Appointment from './models/Appointment'
 import CoreAppointment from './models/CoreAppointment'
-import { calculateAvailability, handleError } from './util/helpers'
+import { calculateAvailability, handleError, validate, APPOINTMENT_LENGTH } from './util/helpers'
 
 // We use axios for queries to the iHub Server
 axios.defaults.baseURL = process.env.IHUB_ADDRESS!
@@ -330,12 +329,12 @@ app.post('/profile/patient/appointments', keycloak.protect(), async (req, res) =
   const payload = req.body
 
   const end = new Date(payload.start)
-  end.setMinutes(end.getMinutes() + 30)
+  end.setMilliseconds(end.getMilliseconds() + APPOINTMENT_LENGTH)
 
   try {
     const resp = await axios.post(
       '/profile/patient/appointments',
-      { ...payload, end: end.toISOString().replace('Z', '-0000') },
+      { ...payload, end: end.toISOString() },
       {
         headers: { Authorization: `Bearer ${getAccessToken(req)}` },
       }
@@ -395,22 +394,6 @@ app.get('/doctors/:id', async (req, res) => {
   }
 })
 
-type Interval = [number, number]
-
-// FIXME random Express Error when using req: express.Request, res: express.Response
-export function validate(req: any, res: any) {
-  const errorFormatter = ({ msg, param }: { msg: string; param: string }) => {
-    return `${param}: ${msg}`
-  }
-  const errors = validationResult(req).formatWith(errorFormatter)
-  if (!errors.isEmpty()) {
-    console.log(errors)
-    res.status(400).send({ message: `Validation failed! ${errors.array().join(', ')}.` })
-    return false
-  }
-  return true
-}
-
 app.get(
   '/doctors/:id/availability',
   param('id').isString(),
@@ -426,7 +409,7 @@ app.get(
       let endDate = new Date(end as string)
 
       const now = new Date()
-      now.setMinutes(now.getMinutes() + 30)
+      now.setMilliseconds(now.getMilliseconds() + APPOINTMENT_LENGTH)
 
       if (startDate < now) startDate = now
       if (endDate < startDate)
