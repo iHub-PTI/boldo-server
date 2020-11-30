@@ -414,7 +414,9 @@ app.get(
 
       const availabilities = await calculateAvailability(doctorId, startDate, endDate)
 
-      // FIXME: nextAvailability is likely wrong if start date is in future
+      // FIXME: nextAvailability is runing the whole loop again.
+      // Could be done in one loop in the case that start = now
+      // Also starts two workers. Could start one
       res.send({ availabilities, nextAvailability: await calculateNextAvailability(doctorId) })
     } catch (err) {
       handleError(req, res, err)
