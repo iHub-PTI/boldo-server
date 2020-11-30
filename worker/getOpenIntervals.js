@@ -12,6 +12,9 @@ const rangeDiff = (r1, r2) => {
   const [s2, e2] = r2
   const endpoints = [s1, e1, s2, e2].sort((a, b) => a - b)
 
+  /**
+   * @type {Interval[]}
+   */
   const result = []
   if (endpoints[0] === s1) result.push([endpoints[0], endpoints[1]])
   if (endpoints[3] === e1) result.push([endpoints[2], endpoints[3]])
@@ -19,13 +22,15 @@ const rangeDiff = (r1, r2) => {
 }
 
 /**
- *
  * @param {Interval[]} r1_list
  * @param {Interval[]} r2_list
  */
 
 const multirangeDiff = (r1_list, r2_list) => {
   r2_list.forEach(r2 => {
+    /**
+     * @type {Interval[]}
+     */
     let list = []
     r1_list.forEach(r1 => {
       list = [...list, ...rangeDiff(r1, r2)]
