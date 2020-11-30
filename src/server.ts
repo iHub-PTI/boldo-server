@@ -124,8 +124,7 @@ app.get('/profile/doctor', keycloak.protect('realm:doctor'), async (req, res) =>
 
     res.send({ ...resp.data, openHours })
   } catch (err) {
-    console.log(err)
-    res.status(500).send({ message: 'Failed to fetch data' })
+    handleError(req, res, err)
   }
 })
 
@@ -148,34 +147,30 @@ app.post('/profile/doctor', keycloak.protect('realm:doctor'), async (req, res) =
     await Doctor.findOneAndUpdate({ _id: req.userId, id: resp.data.id }, { openHours }, { upsert: true })
 
     await axios.put('/profile/doctor', ihubPayload, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    res.sendStatus(200)
   } catch (err) {
-    if (err.response?.data) {
-      console.log(err.response?.data)
-      return res.status(400).send(err.response.data)
-    } else {
-      console.log(err)
-      return res.sendStatus(500)
-    }
+    handleError(req, res, err)
   }
+})
 
-  res.sendStatus(200)
+app.get('/profile/patient', keycloak.protect('realm:doctor'), async (req, res) => {
+  try {
+    const resp = await axios.get('/profile/patient', { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+
+    res.send(resp.data)
+  } catch (err) {
+    handleError(req, res, err)
+  }
 })
 
 app.post('/profile/patient', keycloak.protect(), async (req, res) => {
   const payload = req.body
   try {
     await axios.put('/profile/patient', payload, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    res.sendStatus(200)
   } catch (err) {
-    if (err.response) {
-      console.log(err.response.data)
-      return res.status(400).send(err.response.data)
-    } else {
-      console.log(err)
-      return res.sendStatus(500)
-    }
+    handleError(req, res, err)
   }
-
-  res.sendStatus(200)
 })
 
 //
@@ -207,6 +202,7 @@ app.get('/profile/doctor/appointments', keycloak.protect('realm:doctor'), async 
   }
 })
 
+// FIXME: Should be merged with endpoint above
 app.get('/profile/doctor/appointments/openAppointments', keycloak.protect('realm:doctor'), async (req, res) => {
   // FIXME: It seems like KC allows for request using tokens that are timed out already.
 
@@ -297,8 +293,8 @@ app.delete('/profile/doctor/appointments/:id', keycloak.protect('realm:doctor'),
 // Protected Routes for managing profile information
 // GET /profile/patient/appointments - Read appointments of Patient
 // POST /profile/patient/appointments - Create appontment for Patient
-
 //
+
 app.get('/profile/patient/appointments', keycloak.protect('realm:patient'), async (req, res) => {
   try {
     const resp = await axios.get<iHub.Appointment[]>('/profile/patient/appointments?include=doctor', {
@@ -320,8 +316,7 @@ app.get('/profile/patient/appointments', keycloak.protect('realm:patient'), asyn
 
     res.send(FHIRAppointments)
   } catch (err) {
-    console.log(err)
-    res.status(500).send({ message: 'Failed to fetch data' })
+    handleError(req, res, err)
   }
 })
 
@@ -341,13 +336,7 @@ app.post('/profile/patient/appointments', keycloak.protect(), async (req, res) =
     )
     res.send(resp.data)
   } catch (err) {
-    if (err.response) {
-      console.log(err.response.data)
-      return res.status(400).send(err.response.data)
-    } else {
-      console.log(err)
-      return res.sendStatus(500)
-    }
+    handleError(req, res, err)
   }
 })
 
@@ -377,10 +366,9 @@ app.get('/doctors', async (req, res) => {
       nextAvailability: createRandomFutureDate(),
     }))
 
-    res.send(doctorsWithNextAvailability)
+    res.send({ items: doctorsWithNextAvailability, total: resp.data.total })
   } catch (err) {
-    console.log(err)
-    res.sendStatus(500)
+    handleError(req, res, err)
   }
 })
 
@@ -389,8 +377,7 @@ app.get('/doctors/:id', async (req, res) => {
     const resp = await axios.get<iHub.Doctor>(`/doctors/${req.params.id}`)
     res.send(resp.data)
   } catch (err) {
-    console.log(err)
-    res.sendStatus(500)
+    handleError(req, res, err)
   }
 })
 
@@ -440,8 +427,7 @@ app.get('/presigned', keycloak.protect(), async (req, res) => {
     const resp = await axios.get('/s3/presigned', { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
     res.send(resp.data)
   } catch (err) {
-    console.log(err.response?.data || err)
-    return res.sendStatus(500)
+    handleError(req, res, err)
   }
 })
 
@@ -449,28 +435,21 @@ app.get('/presigned', keycloak.protect(), async (req, res) => {
 // Forward all other GET endpoints:
 // EXAMPLES:
 // GET /specializations - List doctor specializations
-// GET /profile/patient - Read patient details
-// POST /profile/patient - Update patient details
 //
 
 app.get('*', async (req, res) => {
+  console.log('DELETE ME, Implement me properly!', req.baseUrl)
   const token = getAccessToken(req)
   try {
     const resp = await axios.get(req.originalUrl, { ...(!!token && { headers: { Authorization: `Bearer ${token}` } }) })
     return res.send(resp.data)
   } catch (err) {
-    if (err.response) {
-      if (err.response.status === 401) return res.status(401).send({ message: createLoginUrl(req, '/login') })
-      console.log('axios:', err.response.data || err.message)
-      return res.status(err.response.status).send(err.response.data)
-    } else {
-      console.log(err)
-      return res.sendStatus(500)
-    }
+    handleError(req, res, err)
   }
 })
 
 app.post('*', async (req, res) => {
+  console.log('DELETE ME, Implement me properly!', req.baseUrl)
   const payload = req.body || {}
   const token = getAccessToken(req)
   try {
@@ -479,14 +458,7 @@ app.post('*', async (req, res) => {
     })
     return res.send(resp.data)
   } catch (err) {
-    if (err.response) {
-      if (err.response.status === 401) return res.status(401).send({ message: createLoginUrl(req, '/login') })
-      console.log('axios:', err.response.data || err.message)
-      return res.status(err.response.status).send(err.response.data)
-    } else {
-      console.log(err)
-      return res.sendStatus(500)
-    }
+    handleError(req, res, err)
   }
 })
 
