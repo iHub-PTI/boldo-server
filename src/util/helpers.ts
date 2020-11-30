@@ -4,7 +4,7 @@ import express from 'express'
 import { validationResult } from 'express-validator'
 
 import { createLoginUrl } from './kc-helpers'
-import calculateOpenIntervals from '../../worker/getOpenIntervals'
+import calculateOpenIntervals from '../worker/getOpenIntervals'
 import Appointment from '../models/Appointment'
 import Doctor, { IDoctor } from '../models/Doctor'
 

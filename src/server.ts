@@ -35,7 +35,8 @@ export const app = express()
 // //////////////////////////////
 //
 //
-const AllowedOrigins = process.env.BOLDO_CORS!.split(",")
+const AllowedOrigins = process.env.BOLDO_CORS!.split(',')
+console.log(AllowedOrigins)
 app.use(cors({ origin: AllowedOrigins, credentials: true }))
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
