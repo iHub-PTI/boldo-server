@@ -1,8 +1,9 @@
 # Boldo - Server
 
-Boldo can be found in any Paraguayan household. It is a magic team that can calm all kind of stomache ache.
+Boldo can be found in any Paraguayan household. It is a magic tea that can calm all kind of stomachache.
 
-This is the server for Boldo - a telemedicine solution for doctors and patients.
+This is the server for Boldo - a telemedicine solution for doctors and patients. 
+
 The server exposes APIs that are consumed by the web app and the mobile app.
 
 ## Getting Started
@@ -11,6 +12,8 @@ The server exposes APIs that are consumed by the web app and the mobile app.
 
    - node.js (v12 or newer)
    - mongoDB (v4.2 or newer)
+   - Optional dependency: 
+     - Docker (v19 or newer) for building the image
 
 2. Install dependencies: `npm i`
 
@@ -19,20 +22,39 @@ The server exposes APIs that are consumed by the web app and the mobile app.
    ```
    SECRET = secure_server_secret
    MONGODB_URI = mongodb://localhost:27017/boldo
-
+   
    # ###################### Online ######################
    # CLIENT_ADDRESS = https://boldo.penguin.software
    # KEYCLOAK_ADDRESS = https://sso-test.pti.org.py/auth
    IHUB_ADDRESS = https://sso-test.pti.org.py/api
-
+   # BOLDO_CORS = https://boldo.penguin.software
+   
    # ###################### Local ######################
    CLIENT_ADDRESS = http://localhost:3000
    KEYCLOAK_ADDRESS = http://localhost:8080/auth
+   BOLDO_CORS = https://localhost:3000
    ```
 
 4. Ensure the server runs in the timezone `America/Asuncion`!
 
 5. `npm run dev` - to start server on [localhost:8008](http://localhost:8008)
+
+
+## Run with docker
+
+To build the docker image use the following command:
+
+```
+docker build -t boldo-server .
+```
+
+Remember to set your `.env` file.
+
+ After that you can test it running the following command:
+
+```bash
+docker run --rm -it -p 8008:8008 boldo-server
+```
 
 ## Contributing
 

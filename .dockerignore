@@ -1,0 +1,6 @@
+*
+!*.js
+!src
+!*.json
+!scripts
+!.env
