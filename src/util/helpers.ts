@@ -96,7 +96,8 @@ export const calculateNextAvailability = async (doctorId: string) => {
   endDate.setDate(endDate.getDate() + 24)
   const availabilitiesMonth = await calculateAvailability(doctorId, startDate, endDate)
 
-  return availabilitiesMonth
+  if (availabilitiesMonth.length > 0) return availabilitiesMonth[0]
+  return ''
 }
 
 export const handleError = (req: express.Request, res: express.Response, err: any) => {
