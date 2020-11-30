@@ -21,8 +21,13 @@ export const calculateAvailability = async (doctorId: string, start: Date, end: 
     const openHours = doctor.openHours || { mon: [], tue: [], wed: [], thu: [], fri: [], sat: [], sun: [] }
 
     // Get all the FHIR appointments
+
+    // FIXME: There is an issue with FHIR not returning events that start before the startDate but end after the start date.
+    // Therefore use 1h before appointment.
+    const startFHIR = new Date(start)
+    startFHIR.setHours(startFHIR.getHours() - 1)
     const resp = await axios.get<iHub.Appointment[]>(
-      `/appointments?doctors=${doctorId}&start=${start.toISOString()}&end=${end.toISOString()}`
+      `/appointments?doctors=${doctorId}&start=${startFHIR.toISOString()}&end=${end.toISOString()}`
     )
 
     // Get the doctors other appointments

@@ -9,7 +9,7 @@ import Keycloak from 'keycloak-connect'
 import axios from 'axios'
 import mongoose from 'mongoose'
 import { differenceInDays, differenceInHours, differenceInMinutes, parseISO } from 'date-fns'
-import { param, query } from 'express-validator'
+import { body, param, query } from 'express-validator'
 
 import { createLoginUrl } from './util/kc-helpers'
 import Doctor from './models/Doctor'
@@ -326,25 +326,44 @@ app.get('/profile/patient/appointments', keycloak.protect('realm:patient'), asyn
   }
 })
 
-app.post('/profile/patient/appointments', keycloak.protect(), async (req, res) => {
-  const payload = req.body
+app.post(
+  '/profile/patient/appointments',
+  keycloak.protect(),
+  body('doctorId').isString(),
+  body('start').isISO8601(),
+  async (req, res) => {
+    if (!validate(req, res)) return
 
-  const end = new Date(payload.start)
-  end.setMilliseconds(end.getMilliseconds() + APPOINTMENT_LENGTH)
+    const { start, doctorId } = req.body
 
-  try {
-    const resp = await axios.post(
-      '/profile/patient/appointments',
-      { ...payload, end: end.toISOString() },
-      {
-        headers: { Authorization: `Bearer ${getAccessToken(req)}` },
-      }
-    )
-    res.send(resp.data)
-  } catch (err) {
-    handleError(req, res, err)
+    const startDate = new Date(start)
+    const endDate = new Date(start)
+    endDate.setMilliseconds(endDate.getMilliseconds() + APPOINTMENT_LENGTH)
+
+    const now = new Date()
+    now.setMilliseconds(now.getMilliseconds() + APPOINTMENT_LENGTH)
+    if (startDate < now) return res.status(400).send({ message: "'start' has to be at least 30 minutes in the future" })
+
+    try {
+      const availabilities = await calculateAvailability(doctorId, startDate, endDate)
+      const available = availabilities.map(date => Date.parse(date)).includes(Date.parse(start))
+      if (!available) return res.status(400).send({ message: 'timeslot is not available for booking' })
+
+      const resp = await axios.post(
+        '/profile/patient/appointments',
+        { doctorId, start, end: endDate.toISOString() },
+        {
+          headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+        }
+      )
+
+      // FIXME: double check for double booking
+      res.send(resp.data)
+    } catch (err) {
+      handleError(req, res, err)
+    }
   }
-})
+)
 
 //
 // Doctor

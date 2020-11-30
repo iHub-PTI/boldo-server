@@ -30,7 +30,9 @@ The server exposes APIs that are consumed by the web app and the mobile app.
    KEYCLOAK_ADDRESS = http://localhost:8080/auth
    ```
 
-4. `npm run dev` - to start server on [localhost:8008](http://localhost:8008)
+4. Ensure the server runs in the timezone `America/Asuncion`!
+
+5. `npm run dev` - to start server on [localhost:8008](http://localhost:8008)
 
 ## Contributing
 
