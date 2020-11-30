@@ -8,15 +8,15 @@ import session from 'express-session'
 import Keycloak from 'keycloak-connect'
 import axios from 'axios'
 import mongoose from 'mongoose'
-import { addDays, differenceInDays, differenceInHours, differenceInMinutes, parseISO } from 'date-fns'
+import { differenceInDays, differenceInHours, differenceInMinutes, parseISO } from 'date-fns'
 import { param, query, validationResult } from 'express-validator'
 
 import { createLoginUrl } from './util/kc-helpers'
-import calculateOpenIntervals from '../worker/getOpenIntervals'
 
-import Doctor, { IDoctor } from './models/Doctor'
+import Doctor from './models/Doctor'
 import Appointment from './models/Appointment'
 import CoreAppointment from './models/CoreAppointment'
+import { calculateAvailability, handleError } from './util/helpers'
 
 // We use axios for queries to the iHub Server
 axios.defaults.baseURL = process.env.IHUB_ADDRESS!
@@ -363,7 +363,9 @@ app.get('/doctors', async (req, res) => {
   try {
     const queryString = req.originalUrl.split('?')[1]
 
-    const resp = await axios.get<{ items: iHub.Doctor[]; total: number }>(`/doctors${queryString ? `?${queryString}` : ''}`)
+    const resp = await axios.get<{ items: iHub.Doctor[]; total: number }>(
+      `/doctors${queryString ? `?${queryString}` : ''}`
+    )
 
     const createRandomFutureDate = () => {
       const date = new Date()
@@ -412,7 +414,7 @@ export function validate(req: any, res: any) {
 app.get(
   '/doctors/:id/availability',
   param('id').isString(),
-  query(['start', 'end']).isString(),
+  query(['start', 'end']).isISO8601(),
   async (req: express.Request, res: express.Response) => {
     if (!validate(req, res)) return
 
@@ -420,85 +422,27 @@ app.get(
     const { id: doctorId } = req.params
 
     try {
-      const resp = await axios.get<iHub.Doctor>(`/doctors/${doctorId}`)
-      if (!resp.data) return res.status(400).send({ message: 'No Doctor with this id' })
+      let startDate = new Date(start as string)
+      let endDate = new Date(end as string)
 
-      // Get all the FHIR appointments
-      const respp = await axios.get<iHub.Appointment[]>(`/appointments?doctors=${doctorId}`)
+      const now = new Date()
+      now.setMinutes(now.getMinutes() + 30)
 
-      // Get the doctor._id and opening hours
-      const doctor = await Doctor.findOne({ id: doctorId })
-      if (!doctor) return res.status(400).send({ message: 'This doctor has no availabilities' })
-      const openHours = doctor.openHours || { mon: [], tue: [], wed: [], thu: [], fri: [], sat: [], sun: [] }
+      if (startDate < now) startDate = now
+      if (endDate < startDate)
+        res.status(400).send({ message: 'End Date has to be larger than start and in the future' })
 
-      // Get the doctors other appointments
-      const appointments = await Appointment.find({ doctorId: doctor._id })
-
-      // Transforming the data
-      const iHubAppointments = respp.data.map(appointment => [
-        Date.parse(appointment.start),
-        Date.parse(appointment.end),
-      ])
-      const boldoAppointments = appointments.map(appointment => [
-        appointment.start.getTime(),
-        appointment.end.getTime(),
-      ])
-
-      const blockedIntervals = [...boldoAppointments, ...iHubAppointments]
-
-      const calculateOpenHours = (openHours: IDoctor['openHours'], start: string, end: string) => {
-        const startDate = new Date(start)
-        const endDate = new Date(end)
-
-        // Create list of days
-        const days = differenceInDays(endDate, startDate)
-        const daysList = [...Array(days + 1).keys()].map(i => addDays(startDate, i))
-        return daysList.flatMap(day => {
-          const dayOfTheWeek = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][
-            day.getDay()
-          ] as keyof IDoctor['openHours']
-          const openHoursOfDay = openHours[dayOfTheWeek]
-
-          return openHoursOfDay.map(openHour => {
-            let localDateString = new Date(day).toLocaleString('en-US', { timeZone: 'America/Asuncion' })
-
-            let localStartDate = new Date(localDateString)
-            localStartDate.setHours(0, openHour.start, 0)
-
-            let localEndDate = new Date(localDateString)
-            localEndDate.setHours(0, openHour.end, 0)
-
-            return [localStartDate.getTime(), localEndDate.getTime()]
-          })
-        })
+      if (differenceInDays(endDate, startDate) > 30) {
+        endDate = new Date(startDate)
+        endDate.setDate(endDate.getDate() + 31)
       }
 
-      const openHourDates = calculateOpenHours(openHours, start as string, end as string)
+      const availabilities = await calculateAvailability(doctorId, startDate, endDate)
 
-      const openIntervals = await calculateOpenIntervals({
-        base: openHourDates as Interval[],
-        substract: blockedIntervals as Interval[],
-      })
-      const intervalInMs = 1000 * 60 * 30 /** minutes */
-
-      const availabilities = openIntervals
-        .flatMap(interval => {
-          const intervals = [] as number[]
-          let [start, end] = interval
-          // if (distance < intervalInMs) return []
-          while (end - start >= intervalInMs) {
-            intervals.push(start)
-            start = start + intervalInMs
-          }
-          return intervals
-        })
-        .sort((a, b) => a - b)
-        .map(date => new Date(date).toISOString())
-
-      res.send({ ...resp.data, availabilities, nextAvailability: availabilities[0] })
+      // FIXME: nextAvailability is likely wrong if start date is in future
+      res.send({ availabilities, nextAvailability: availabilities[0] })
     } catch (err) {
-      console.log(err)
-      res.sendStatus(500)
+      handleError(req, res, err)
     }
   }
 )
@@ -587,24 +531,4 @@ if (require.main === module) {
       console.log(err)
       process.exit(1)
     })
-}
-
-//
-//
-// //////////////////////////////
-//        HELPER
-// //////////////////////////////
-//
-//
-
-const handleError = (req: express.Request, res: express.Response, err: any) => {
-  console.log(err.message, err.name)
-  if (err.response) {
-    if (err.response.status === 401) return res.status(401).send({ message: createLoginUrl(req, '/login') })
-    console.log('axios:', err.response.data || err.message)
-    return res.status(err.response.status).send(err.response.data)
-  } else {
-    console.log(err)
-    return res.sendStatus(500)
-  }
 }

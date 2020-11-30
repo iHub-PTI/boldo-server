@@ -30,4 +30,6 @@ const DoctorSchema: Schema = new Schema(
   { timestamps: true, _id: false }
 )
 
+DoctorSchema.index({ id: 1 })
+
 export default mongoose.model<IDoctor>('Doctor', DoctorSchema)
