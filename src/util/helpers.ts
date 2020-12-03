@@ -16,7 +16,7 @@ export const calculateAvailability = async (doctorId: string, start: Date, end: 
   try {
     // Get the doctor._id and opening hours
     const doctor = await Doctor.findOne({ id: doctorId })
-    if (!doctor) throw { message: 'Booking not available', status: '400' }
+    if (!doctor) return []
 
     const openHours = doctor.openHours || { mon: [], tue: [], wed: [], thu: [], fri: [], sat: [], sun: [] }
 
