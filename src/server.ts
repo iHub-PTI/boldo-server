@@ -222,7 +222,7 @@ app.get('/profile/doctor/appointments/openAppointments', keycloak.protect('realm
     const upcomingAppointments = resp.data.filter(appointment => {
       const minutes = differenceInMinutes(parseISO(appointment.start as any), Date.now())
       const hours = differenceInHours(parseISO(appointment.start as any), Date.now())
-      return minutes < 15 && hours > -24
+      return minutes < 15 && hours > -240
     })
 
     res.send(upcomingAppointments)
