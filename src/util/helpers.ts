@@ -18,8 +18,6 @@ export const calculateAvailability = async (doctorId: string, start: Date, end: 
     const doctor = await Doctor.findOne({ id: doctorId })
     if (!doctor) return []
 
-    const openHours = doctor.openHours || { mon: [], tue: [], wed: [], thu: [], fri: [], sat: [], sun: [] }
-
     // Get all the FHIR appointments
 
     // FIXME: There is an issue with FHIR not returning events that start before the startDate but end after the start date.
@@ -39,7 +37,7 @@ export const calculateAvailability = async (doctorId: string, start: Date, end: 
     const blockedIntervals = [...boldoAppointments, ...iHubAppointments] as Interval[]
 
     // Expand openingHours to intervals
-    const openHourDates = calculateOpenHours(openHours, start, end) as Interval[]
+    const openHourDates = calculateOpenHours(doctor.openHours, start, end) as Interval[]
 
     // Calcualte availability intervals
     const openIntervals = await calculateOpenIntervals({ base: openHourDates, substract: blockedIntervals })
