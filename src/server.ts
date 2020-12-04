@@ -128,21 +128,9 @@ app.get('/profile/doctor', keycloak.protect('realm:doctor'), async (req, res) =>
 
     const resp = await axios.get('/profile/doctor', { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
 
-    res.send({ ...resp.data, openHours })
+    res.send({ ...resp.data, openHours, new: !doctor })
   } catch (err) {
     handleError(req, res, err)
-  }
-})
-
-app.get('/profile/doctor/openHours', keycloak.protect('realm:doctor'), async (req, res) => {
-  try {
-    const doctor = await Doctor.findById(req.userId)
-    const openHours = doctor?.openHours || { mon: [], tue: [], wed: [], thu: [], fri: [], sat: [], sun: [] }
-
-    res.send(openHours)
-  } catch (err) {
-    console.log(err)
-    res.sendStatus(500)
   }
 })
 
