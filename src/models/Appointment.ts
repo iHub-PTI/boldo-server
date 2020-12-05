@@ -10,7 +10,7 @@ export interface IAppointment extends Document {
   end: Date
   description: string
   doctorId: string
-  type: 'PrivateEvent' | 'CustomAppointment' | 'Appointment'
+  type: 'PrivateEvent'
 }
 
 const AppointmentSchema: Schema = new Schema(
@@ -20,7 +20,7 @@ const AppointmentSchema: Schema = new Schema(
     end: { type: Date, required: true },
     description: String,
     doctorId: { type: String, required: true },
-    type: { type: String, required: true },
+    type: { type: String, enum: ['PrivateEvent'], required: true },
   },
   {
     timestamps: true,

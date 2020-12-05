@@ -1,7 +1,7 @@
 import mongoose, { Schema, Document } from 'mongoose'
 
 export interface ICoreAppointment extends Document {
-  status: 'closed'
+  status: 'upcoming' | 'open' | 'closed'
   id: string
 }
 

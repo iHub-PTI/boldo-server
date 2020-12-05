@@ -13,8 +13,8 @@ import { body, param, query } from 'express-validator'
 
 import { createLoginUrl } from './util/kc-helpers'
 import Doctor from './models/Doctor'
-import Appointment from './models/Appointment'
-import CoreAppointment from './models/CoreAppointment'
+import Appointment, { IAppointment } from './models/Appointment'
+import CoreAppointment, { ICoreAppointment } from './models/CoreAppointment'
 import {
   calculateAvailability,
   handleError,
@@ -112,13 +112,10 @@ app.get('/login', keycloak.protect(), (req, res) => {
 })
 
 //
-// PROFILE:
+// DOCTOR PROFILE:
 // Protected Routes for managing profile information
 // GET /profile/doctor - Read doctor details
-// GET /profile/doctor/openHours - Read doctor details
 // POST /profile/doctor - Update doctor details
-// GET /profile/patient - Read patient details
-// POST /profile/patient - Update patient details
 //
 
 app.get('/profile/doctor', keycloak.protect('realm:doctor'), async (req, res) => {
@@ -134,30 +131,52 @@ app.get('/profile/doctor', keycloak.protect('realm:doctor'), async (req, res) =>
   }
 })
 
-app.post('/profile/doctor', keycloak.protect('realm:doctor'), async (req, res) => {
-  const { openHours, ...ihubPayload } = req.body
-  try {
-    const resp = await axios.get('/profile/doctor', { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
-    await Doctor.findOneAndUpdate({ _id: req.userId, id: resp.data.id }, { openHours }, { upsert: true })
+app.post(
+  '/profile/doctor',
+  keycloak.protect('realm:doctor'),
+  body([
+    'openHours.mon',
+    'openHours.tue',
+    'openHours.wed',
+    'openHours.thu',
+    'openHours.fri',
+    'openHours.sat',
+    'openHours.sun',
+  ]).isArray(),
+  body(['openHours.*.*.start', 'openHours.*.*.end']).isInt().toInt(),
+  async (req, res) => {
+    if (!validate(req, res)) return
 
-    await axios.put('/profile/doctor', ihubPayload, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
-    res.sendStatus(200)
-  } catch (err) {
-    handleError(req, res, err)
+    const { openHours, ...ihubPayload } = req.body
+
+    try {
+      const resp = await axios.get('/profile/doctor', { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+      await Doctor.findOneAndUpdate({ _id: req.userId, id: resp.data.id }, { openHours }, { upsert: true })
+
+      await axios.put('/profile/doctor', ihubPayload, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+      res.sendStatus(200)
+    } catch (err) {
+      handleError(req, res, err)
+    }
   }
-})
+)
 
-app.get('/profile/patient', keycloak.protect('realm:doctor'), async (req, res) => {
+//
+// PATIENT PROFILE:
+// GET /profile/patient - Read patient details
+// POST /profile/patient - Update patient details
+//
+
+app.get('/profile/patient', keycloak.protect('realm:patient'), async (req, res) => {
   try {
     const resp = await axios.get('/profile/patient', { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
-
     res.send(resp.data)
   } catch (err) {
     handleError(req, res, err)
   }
 })
 
-app.post('/profile/patient', keycloak.protect(), async (req, res) => {
+app.post('/profile/patient', keycloak.protect('realm:patient'), async (req, res) => {
   const payload = req.body
   try {
     await axios.put('/profile/patient', payload, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
@@ -169,55 +188,80 @@ app.post('/profile/patient', keycloak.protect(), async (req, res) => {
 
 //
 // APPOINTMENTS for DOCTORS:
-// Protected Routes for managing profile information
-// GET /profile/doctor/appointments - Read appointments of Doctor
-// GET /profile/doctor/appointments/:id - Read appointment of Doctor
-// POST /profile/doctor/appointments/:id - Update appointment of Doctor
-// GET /profile/doctor/appointments/openAppointments - Read appointments of Doctor that have open WaitingRoom
-// POST /profile/doctor/appointments - Create appontment for Doctor
-// DELETE /profile/doctor/appointments/:id - Delete appontment for Doctor
+// Protected routes for managing appointments
+// GET /profile/doctor/appointments - Read doctor appointments
+// POST /profile/doctor/appointments - Create doctor appointment
+// GET /profile/doctor/appointments/:id - Read doctor appointment
+// POST /profile/doctor/appointments/:id - Update doctor appointment
+// DELETE /profile/doctor/appointments/:id - Delete doctor appointment
 //
 
-// FIXME: Should be scoped to start and end date
-app.get('/profile/doctor/appointments', keycloak.protect('realm:doctor'), async (req, res) => {
-  try {
-    const appointments = await Appointment.find({ doctorId: req.userId })
+app.get(
+  '/profile/doctor/appointments',
+  keycloak.protect('realm:doctor'),
+  query(['start', 'end']).isISO8601().optional(),
+  query('status').isString().optional(),
+  async (req, res) => {
+    if (!validate(req, res)) return
 
-    const resp = await axios.get<iHub.Appointment[]>('/profile/doctor/appointments?include=patient', {
-      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
-    })
+    const { status, start, end } = req.query
 
-    const FHIRAppointments = resp.data.map(event => ({ ...event, type: 'Appointment' }))
+    let coreAppointments = [] as (iHub.Appointment & { type: string; status: ICoreAppointment['status'] })[]
+    let appointments = [] as IAppointment[]
 
-    res.send([...FHIRAppointments, ...appointments])
-  } catch (err) {
-    console.log(err)
-    res.status(500).send({ message: 'Failed to fetch data' })
+    try {
+      const resp = await axios.get<iHub.Appointment[]>(
+        `/profile/doctor/appointments?include=patient${start && end ? `&start=${start}&end=${end}` : ''}`,
+        {
+          headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+        }
+      )
+      const ids = resp.data.map(app => app.id)
+      const appointmentsAddon = await CoreAppointment.find({ id: { $in: ids } })
+
+      coreAppointments = resp.data.map(event => {
+        let status = 'upcoming' as ICoreAppointment['status']
+        const minutes = differenceInMinutes(parseISO(event.start as any), Date.now())
+        if (minutes < 15) {
+          const appointmentAddon = appointmentsAddon.find(app => app.id === event.id)
+          status = appointmentAddon?.status || 'open'
+        }
+        return { ...event, type: 'Appointment', status }
+      })
+
+      if (status) coreAppointments = coreAppointments.filter(appointment => appointment.status === status)
+      if (!status) appointments = await Appointment.find({ doctorId: req.userId })
+
+      res.send([...coreAppointments, ...appointments])
+    } catch (err) {
+      handleError(req, res, err)
+    }
   }
-})
+)
 
-// FIXME: Should be merged with endpoint above
-app.get('/profile/doctor/appointments/openAppointments', keycloak.protect('realm:doctor'), async (req, res) => {
-  // FIXME: It seems like KC allows for request using tokens that are timed out already.
+app.post(
+  '/profile/doctor/appointments',
+  keycloak.protect('realm:doctor'),
+  body('type').isIn(['PrivateEvent']),
+  body('name').isString,
+  body(['start', 'end']).isISO8601(),
+  body('description').isString().optional(),
+  async (req, res) => {
+    if (!validate(req, res)) return
+    if (!req.userId) return res.sendStatus(500)
 
-  try {
-    // FIXME: Request Should be scoped to start and end date
-    const resp = await axios.get<iHub.Appointment[]>('/profile/doctor/appointments?include=patient', {
-      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
-    })
+    const { type, name, start, end, description } = req.body
 
-    const upcomingAppointments = resp.data.filter(appointment => {
-      const minutes = differenceInMinutes(parseISO(appointment.start as any), Date.now())
-      const hours = differenceInHours(parseISO(appointment.start as any), Date.now())
-      return minutes < 15 && hours > -240
-    })
-
-    res.send(upcomingAppointments)
-  } catch (err) {
-    console.log(err)
-    res.status(500).send({ message: 'Failed to fetch data' })
+    if (type === 'PrivateEvent') {
+      try {
+        const appointment = await Appointment.create({ type, name, start, end, description, doctorId: req.userId })
+        res.send(appointment)
+      } catch (err) {
+        handleError(req, res, err)
+      }
+    }
   }
-})
+)
 
 app.get('/profile/doctor/appointments/:id', keycloak.protect('realm:doctor'), async (req, res) => {
   try {
@@ -233,24 +277,9 @@ app.get('/profile/doctor/appointments/:id', keycloak.protect('realm:doctor'), as
       const appointmentAddon = await CoreAppointment.findOne({ id: req.params.id })
       status = appointmentAddon?.status || 'open'
     }
-    res.send({ ...resp.data, type: 'Appointment', status })
+    res.send({ ...appointment, type: 'Appointment', status })
   } catch (err) {
     handleError(req, res, err)
-  }
-})
-
-app.post('/profile/doctor/appointments', keycloak.protect('realm:doctor'), async (req, res) => {
-  if (!req.userId) return res.sendStatus(500)
-  const { type, name, start, end, description } = req.body
-
-  if (type === 'PrivateEvent') {
-    try {
-      const appointment = await Appointment.create({ type, name, start, end, description, doctorId: req.userId })
-      res.send(appointment)
-    } catch (err) {
-      console.log(err)
-      return res.sendStatus(500)
-    }
   }
 })
 
@@ -264,6 +293,7 @@ app.post('/profile/doctor/appointments/:id', keycloak.protect('realm:doctor'), a
       headers: { Authorization: `Bearer ${getAccessToken(req)}` },
     })
     if (resp.data.doctorId !== respp.data.id) return res.sendStatus(400)
+
     await CoreAppointment.updateOne({ id: req.params.id }, { $set: { status: 'closed' } }, { upsert: true })
     res.sendStatus(200)
   } catch (err) {
@@ -275,10 +305,8 @@ app.delete('/profile/doctor/appointments/:id', keycloak.protect('realm:doctor'),
   try {
     await Appointment.deleteOne({ _id: req.params.id, doctorId: req.userId })
     res.sendStatus(200)
-  } catch (error) {
-    console.log(error)
-    if (error.message) return res.status(400).send({ message: error.message })
-    res.sendStatus(500)
+  } catch (err) {
+    handleError(req, res, err)
   }
 })
 
@@ -286,7 +314,7 @@ app.delete('/profile/doctor/appointments/:id', keycloak.protect('realm:doctor'),
 // APPOINTMENTS for PATIENTS:
 // Protected Routes for managing profile information
 // GET /profile/patient/appointments - Read appointments of Patient
-// POST /profile/patient/appointments - Create appontment for Patient
+// POST /profile/patient/appointments - Create appointment for Patient
 //
 
 app.get('/profile/patient/appointments', keycloak.protect('realm:patient'), async (req, res) => {
@@ -316,7 +344,7 @@ app.get('/profile/patient/appointments', keycloak.protect('realm:patient'), asyn
 
 app.post(
   '/profile/patient/appointments',
-  keycloak.protect(),
+  keycloak.protect('realm:patient'),
   body('doctorId').isString(),
   body('start').isISO8601(),
   async (req, res) => {
