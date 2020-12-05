@@ -476,31 +476,14 @@ app.get('/presigned', keycloak.protect(), async (req, res) => {
 })
 
 //
-// Forward all other GET endpoints:
-// EXAMPLES:
+// OTHER:
 // GET /specializations - List doctor specializations
 //
 
-app.get('*', async (req, res) => {
-  console.log('DELETE ME, Implement me properly!', req.originalUrl)
-  const token = getAccessToken(req)
+app.get('/specializations', async (req, res) => {
   try {
-    const resp = await axios.get(req.originalUrl, { ...(!!token && { headers: { Authorization: `Bearer ${token}` } }) })
-    return res.send(resp.data)
-  } catch (err) {
-    handleError(req, res, err)
-  }
-})
-
-app.post('*', async (req, res) => {
-  console.log('DELETE ME, Implement me properly!', req.originalUrl)
-  const payload = req.body || {}
-  const token = getAccessToken(req)
-  try {
-    const resp = await axios.put(req.originalUrl, payload, {
-      ...(!!token && { headers: { Authorization: `Bearer ${token}` } }),
-    })
-    return res.send(resp.data)
+    const resp = await axios.get('/specializations')
+    res.send(resp.data)
   } catch (err) {
     handleError(req, res, err)
   }
