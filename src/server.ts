@@ -5,10 +5,12 @@ import cookieParser from 'cookie-parser'
 import cors from 'cors'
 import compression from 'compression'
 import session from 'express-session'
+import redis from 'redis'
+import connectRedis from 'connect-redis'
 import Keycloak from 'keycloak-connect'
 import axios from 'axios'
 import mongoose from 'mongoose'
-import { differenceInDays, differenceInHours, differenceInMinutes, parseISO } from 'date-fns'
+import { differenceInDays, differenceInMinutes, parseISO } from 'date-fns'
 import { body, param, query } from 'express-validator'
 
 import { createLoginUrl } from './util/kc-helpers'
@@ -61,8 +63,17 @@ let kcConfig = {
   'confidential-port': 0,
 }
 
-const memoryStore = new session.MemoryStore()
-app.use(session({ secret: process.env.SECRET!, resave: false, saveUninitialized: true, store: memoryStore }))
+const RedisStore = connectRedis(session)
+const redisClient = redis.createClient(process.env.REDIS_URL!)
+
+app.use(
+  session({
+    secret: process.env.SECRET!,
+    resave: false,
+    saveUninitialized: true,
+    store: new RedisStore({ client: redisClient }),
+  })
+)
 
 // FIXME: We should try if we can configure KC with cookies instead of sessions
 // FIXME: Enable offline_acess scope and make sure we make use of it
@@ -70,7 +81,7 @@ app.use(session({ secret: process.env.SECRET!, resave: false, saveUninitialized:
 // Better to find a way in the client to keep the doctor logged in while using the app?
 export const keycloak = new Keycloak(
   {
-    store: memoryStore,
+    store: RedisStore,
     //scope: 'offline_access',
   },
   kcConfig

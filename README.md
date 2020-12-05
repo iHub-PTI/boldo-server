@@ -12,6 +12,7 @@ The server exposes APIs that are consumed by the web app and the mobile app.
 
    - node.js (v12 or newer)
    - mongoDB (v4.2 or newer)
+   - Redis
    - Optional dependency:
      - Docker (v19 or newer) for building the image
 
@@ -22,6 +23,7 @@ The server exposes APIs that are consumed by the web app and the mobile app.
    ```
    SECRET = secure_server_secret
    MONGODB_URI = mongodb://localhost:27017/boldo
+   REDIS_URL = 127.0.0.1:6379
 
    IHUB_ADDRESS = https://sso-test.pti.org.py/api
 

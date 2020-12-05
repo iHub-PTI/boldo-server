@@ -1,6 +1,7 @@
 #Boldo
 dist
 bin
+dump.rdb
 
 # Logs
 logs

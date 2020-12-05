@@ -103,7 +103,7 @@ export const calculateNextAvailability = async (doctorId: string) => {
 }
 
 export const handleError = (req: express.Request, res: express.Response, err: any) => {
-  console.log(err.message, err.name)
+  console.log(`${err.message} ${err.name ? err.name : ''}`)
   if (err.status) {
     return res.status(err.status).send({ message: err.message })
   } else if (err.isAxiosError) {
