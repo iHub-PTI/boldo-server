@@ -81,7 +81,7 @@ app.use(
 // Better to find a way in the client to keep the doctor logged in while using the app?
 export const keycloak = new Keycloak(
   {
-    store: RedisStore,
+    // store: RedisStore,
     //scope: 'offline_access',
   },
   kcConfig
