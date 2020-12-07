@@ -254,7 +254,7 @@ app.post(
   '/profile/doctor/appointments',
   keycloak.protect('realm:doctor'),
   body('type').isIn(['PrivateEvent']),
-  body('name').isString,
+  body('name').isString(),
   body(['start', 'end']).isISO8601(),
   body('description').isString().optional(),
   async (req, res) => {
@@ -263,13 +263,11 @@ app.post(
 
     const { type, name, start, end, description } = req.body
 
-    if (type === 'PrivateEvent') {
-      try {
-        const appointment = await Appointment.create({ type, name, start, end, description, doctorId: req.userId })
-        res.send(appointment)
-      } catch (err) {
-        handleError(req, res, err)
-      }
+    try {
+      const appointment = await Appointment.create({ type, name, start, end, description, doctorId: req.userId })
+      res.send(appointment)
+    } catch (err) {
+      handleError(req, res, err)
     }
   }
 )
