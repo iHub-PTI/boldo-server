@@ -1,6 +1,6 @@
 import axios from 'axios'
 import { addDays, differenceInDays } from 'date-fns'
-import express from 'express'
+import express, { response } from 'express'
 import { validationResult } from 'express-validator'
 
 import { createLoginUrl } from './kc-helpers'
@@ -103,13 +103,14 @@ export const calculateNextAvailability = async (doctorId: string) => {
 }
 
 export const handleError = (req: express.Request, res: express.Response, err: any) => {
-  console.log(`${err.message} ${err.name ? err.name : ''}`)
   if (err.status) {
+    console.log(`${err.message} ${err.name ? err.name : ''}`)
     return res.status(err.status).send({ message: err.message })
   } else if (err.isAxiosError) {
-    if (err.response.status === 401) return res.status(401).send({ message: createLoginUrl(req, '/login') })
-    console.log('axios:', err.response.data || err.message)
-    return res.status(err.response.status).send(err.response.data)
+    console.log('axios:', err.response?.data || err.message)
+    if (err.response?.status === 401) return res.status(401).send({ message: createLoginUrl(req, '/login') })
+    if (err.response) return res.status(err.response.status).send(err.response.data)
+    return res.sendStatus(500)
   } else {
     console.log(err)
     return res.sendStatus(500)
