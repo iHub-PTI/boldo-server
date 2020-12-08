@@ -19,7 +19,6 @@
     "@types/express": "^4.17.6",
     "@types/express-session": "^1.17.0",
     "@types/jsonwebtoken": "^8.5.0",
-    "@types/mongoose": "^5.7.37",
     "@types/node-fetch": "^2.5.7",
     "@types/redis": "^2.8.28",
     "@types/socket.io": "^2.1.11",
