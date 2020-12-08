@@ -89,6 +89,7 @@ const calculateOpenHours = (openHours: IDoctor['openHours'], start: Date, end: D
 
 export const calculateNextAvailability = async (doctorId: string) => {
   const startDate = new Date()
+  startDate.setMilliseconds(startDate.getMilliseconds() + APPOINTMENT_LENGTH)
   const endDate = new Date(startDate)
   endDate.setDate(endDate.getDate() + 7)
   const availabilitiesWeek = await calculateAvailability(doctorId, startDate, endDate)
