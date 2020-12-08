@@ -8,7 +8,9 @@
     "build": "tsc -b ./src ./scripts",
     "dev": "nodemon -w src -e tsx,ts  -x ts-node -T --dir src ./server",
     "migrateDev": "ts-node --dir scripts migrate",
-    "migrate": "node bin/scripts/migrate"
+    "migrate": "node bin/scripts/migrate",
+    "archiveAppointmentsDev": "ts-node --dir scripts archiveAppointments.ts",
+    "archiveAppointments": "node bin/scripts/archiveAppointments"
   },
   "dependencies": {
     "@types/compression": "^1.7.0",
@@ -34,7 +36,7 @@
     "jsonwebtoken": "^8.5.1",
     "jwks-rsa": "^1.10.1",
     "keycloak-connect": "^11.0.2",
-    "mongoose": "^5.10.11",
+    "mongoose": "^5.11.5",
     "node-fetch": "^2.6.1",
     "querystring": "^0.2.0",
     "redis": "^3.0.2",

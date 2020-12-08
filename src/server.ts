@@ -292,23 +292,41 @@ app.get('/profile/doctor/appointments/:id', keycloak.protect('realm:doctor'), as
   }
 })
 
-app.post('/profile/doctor/appointments/:id', keycloak.protect('realm:doctor'), async (req, res) => {
-  try {
-    // Get Appointment and check for access rights
-    const resp = await axios.get<iHub.Appointment>(`/profile/doctor/appointments/${req.params.id}`, {
-      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
-    })
-    const respp = await axios.get<iHub.Appointment>(`/profile/doctor`, {
-      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
-    })
-    if (resp.data.doctorId !== respp.data.id) return res.sendStatus(400)
+app.post(
+  '/profile/doctor/appointments/:id',
+  keycloak.protect('realm:doctor'),
+  param('id').isString(),
+  body('status').isIn(['closed', 'open']),
+  async (req, res) => {
+    if (!validate(req, res)) return
 
-    await CoreAppointment.updateOne({ id: req.params.id }, { $set: { status: 'closed' } }, { upsert: true })
-    res.sendStatus(200)
-  } catch (err) {
-    handleError(req, res, err)
+    const { status } = req.body
+
+    try {
+      // Get Appointment and check for access rights
+      const req1 = axios.get<iHub.Appointment>(`/profile/doctor/appointments/${req.params.id}`, {
+        headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+      })
+      const req2 = axios.get<iHub.Appointment>(`/profile/doctor`, {
+        headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+      })
+      const [resp, respp] = await Promise.all([req1, req2])
+
+      if (resp.data.doctorId !== respp.data.id) return res.sendStatus(400)
+
+      if (['closed', 'open'].includes(status)) {
+        const appointment = await CoreAppointment.updateOne(
+          { id: req.params.id, status: { $ne: 'locked' } },
+          { $set: { status } }
+        )
+        if (appointment.nModified === 0) return res.status(400).send({ message: 'Update failed' })
+      }
+      res.sendStatus(200)
+    } catch (err) {
+      handleError(req, res, err)
+    }
   }
-})
+)
 
 app.delete('/profile/doctor/appointments/:id', keycloak.protect('realm:doctor'), async (req, res) => {
   try {
@@ -374,6 +392,8 @@ app.post(
       const available = availabilities.map(date => Date.parse(date)).includes(Date.parse(start))
       if (!available) return res.status(400).send({ message: 'timeslot is not available for booking' })
 
+      const appointment = await CoreAppointment.create({ date: startDate, status: 'upcoming', id: '_' })
+
       const resp = await axios.post(
         '/profile/patient/appointments',
         { doctorId, start, end: endDate.toISOString() },
@@ -381,6 +401,7 @@ app.post(
           headers: { Authorization: `Bearer ${getAccessToken(req)}` },
         }
       )
+      const x = await CoreAppointment.findByIdAndUpdate(appointment._id, { $set: { id: resp.data.id } })
 
       // FIXME: double check for double booking
       res.send(resp.data)

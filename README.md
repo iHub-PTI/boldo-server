@@ -56,6 +56,10 @@ After that you can test it running the following command:
 docker run --rm -it -p 8008:8008 boldo-server
 ```
 
+## Data
+
+This project has several scripts to run migrations or timed jobs. Have a look at [DATA](/DATA.md) to learn more.
+
 ## Contributing
 
 The project is currently under heavy development but contributors are welcome. For bugs or feature requests or eventual contributions, just open an issue. Contribution guidelines will be available shortly.
