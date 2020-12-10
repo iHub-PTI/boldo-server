@@ -243,7 +243,7 @@ app.get(
       if (status) coreAppointments = coreAppointments.filter(appointment => appointment.status === status)
       if (!status) appointments = await Appointment.find({ doctorId: req.userId })
 
-      res.send([...coreAppointments, ...appointments])
+      res.send({ appointments: [...coreAppointments, ...appointments], token: '' })
     } catch (err) {
       handleError(req, res, err)
     }
@@ -362,7 +362,7 @@ app.get('/profile/patient/appointments', keycloak.protect('realm:patient'), asyn
       return { ...event, type: 'Appointment', status }
     })
 
-    res.send(FHIRAppointments)
+    res.send({ appointments: FHIRAppointments, token: '' })
   } catch (err) {
     handleError(req, res, err)
   }
