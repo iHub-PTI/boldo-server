@@ -314,11 +314,11 @@ app.post(
 
       if (resp.data.doctorId !== respp.data.id) return res.sendStatus(403)
 
-      const appointment = await CoreAppointment.updateOne(
-        { id: req.params.id, status: { $ne: 'locked' } },
-        { $set: { status } }
-      )
-      if (appointment.n === 0) return res.status(400).send({ message: 'Update failed' })
+      let appointment = await CoreAppointment.findOne({ id: req.params.id })
+      if (!appointment) {
+        appointment = await CoreAppointment.create({ date: new Date(resp.data.start), status, id: resp.data.id })
+      }
+      if (appointment.status === 'locked') return res.status(400).send({ message: 'Appointment locked' })
 
       res.sendStatus(200)
     } catch (err) {
