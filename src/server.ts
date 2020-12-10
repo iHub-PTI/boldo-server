@@ -23,6 +23,7 @@ import {
   validate,
   APPOINTMENT_LENGTH,
   calculateNextAvailability,
+  createToken,
 } from './util/helpers'
 
 // We use axios for queries to the iHub Server
@@ -219,6 +220,7 @@ app.get(
 
     let coreAppointments = [] as (iHub.Appointment & { type: string; status: ICoreAppointment['status'] })[]
     let appointments = [] as IAppointment[]
+    let token = ''
 
     try {
       const resp = await axios.get<iHub.Appointment[]>(
@@ -240,10 +242,13 @@ app.get(
         return { ...event, type: 'Appointment', status }
       })
 
-      if (status) coreAppointments = coreAppointments.filter(appointment => appointment.status === status)
+      if (status) {
+        coreAppointments = coreAppointments.filter(appointment => appointment.status === status)
+        if (status === 'open') token = createToken(coreAppointments)
+      }
       if (!status) appointments = await Appointment.find({ doctorId: req.userId })
 
-      res.send({ appointments: [...coreAppointments, ...appointments], token: '' })
+      res.send({ appointments: [...coreAppointments, ...appointments], token })
     } catch (err) {
       handleError(req, res, err)
     }

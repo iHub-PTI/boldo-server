@@ -7,6 +7,7 @@ import { createLoginUrl } from './kc-helpers'
 import calculateOpenIntervals from '../worker/getOpenIntervals'
 import Appointment from '../models/Appointment'
 import Doctor, { IDoctor } from '../models/Doctor'
+import { ICoreAppointment } from '../models/CoreAppointment'
 
 type Interval = [number, number]
 
@@ -130,4 +131,14 @@ export function validate(req: any, res: any) {
     return false
   }
   return true
+}
+
+type appointments = (iHub.Appointment & {
+  type: string
+  status: ICoreAppointment['status']
+})[]
+
+export const createToken = (appointments: appointments) => {
+  console.log(appointments)
+  return ''
 }
