@@ -312,15 +312,14 @@ app.post(
       })
       const [resp, respp] = await Promise.all([req1, req2])
 
-      if (resp.data.doctorId !== respp.data.id) return res.sendStatus(400)
+      if (resp.data.doctorId !== respp.data.id) return res.sendStatus(403)
 
-      if (['closed', 'open'].includes(status)) {
-        const appointment = await CoreAppointment.updateOne(
-          { id: req.params.id, status: { $ne: 'locked' } },
-          { $set: { status } }
-        )
-        if (appointment.nModified === 0) return res.status(400).send({ message: 'Update failed' })
-      }
+      const appointment = await CoreAppointment.updateOne(
+        { id: req.params.id, status: { $ne: 'locked' } },
+        { $set: { status } }
+      )
+      if (appointment.n === 0) return res.status(400).send({ message: 'Update failed' })
+
       res.sendStatus(200)
     } catch (err) {
       handleError(req, res, err)
