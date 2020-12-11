@@ -2,6 +2,7 @@ import axios from 'axios'
 import { addDays, differenceInDays } from 'date-fns'
 import express, { response } from 'express'
 import { validationResult } from 'express-validator'
+import jwt from 'jsonwebtoken'
 
 import { createLoginUrl } from './kc-helpers'
 import calculateOpenIntervals from '../worker/getOpenIntervals'
@@ -133,12 +134,17 @@ export function validate(req: any, res: any) {
   return true
 }
 
-type appointments = (iHub.Appointment & {
-  type: string
-  status: ICoreAppointment['status']
-})[]
-
-export const createToken = (appointments: appointments) => {
-  console.log(appointments)
-  return ''
+export const createToken = (ids: string[], subject: 'patient' | 'doctor') => {
+  try {
+    const token = jwt.sign({ ids }, process.env.PRIVATE_KEY!, {
+      expiresIn: '1d',
+      algorithm: 'RS256',
+      issuer: 'boldo-server',
+      audience: 'boldo-sockets',
+      subject,
+    })
+    return token
+  } catch (err) {
+    throw err
+  }
 }
