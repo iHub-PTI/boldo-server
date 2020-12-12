@@ -23,6 +23,7 @@ import {
   validate,
   APPOINTMENT_LENGTH,
   calculateNextAvailability,
+  createToken,
 } from './util/helpers'
 
 // We use axios for queries to the iHub Server
@@ -219,6 +220,7 @@ app.get(
 
     let coreAppointments = [] as (iHub.Appointment & { type: string; status: ICoreAppointment['status'] })[]
     let appointments = [] as IAppointment[]
+    let token = ''
 
     try {
       const resp = await axios.get<iHub.Appointment[]>(
@@ -240,10 +242,18 @@ app.get(
         return { ...event, type: 'Appointment', status }
       })
 
-      if (status) coreAppointments = coreAppointments.filter(appointment => appointment.status === status)
+      if (status) {
+        coreAppointments = coreAppointments.filter(appointment => appointment.status === status)
+        if (status === 'open') {
+          token = createToken(
+            coreAppointments.map(app => app.id),
+            'doctor'
+          )
+        }
+      }
       if (!status) appointments = await Appointment.find({ doctorId: req.userId })
 
-      res.send([...coreAppointments, ...appointments])
+      res.send({ appointments: [...coreAppointments, ...appointments], token })
     } catch (err) {
       handleError(req, res, err)
     }
@@ -286,7 +296,11 @@ app.get('/profile/doctor/appointments/:id', keycloak.protect('realm:doctor'), as
       const appointmentAddon = await CoreAppointment.findOne({ id: req.params.id })
       status = appointmentAddon?.status || 'open'
     }
-    res.send({ ...appointment, type: 'Appointment', status })
+
+    let token = ''
+    if (status === 'open') token = createToken([appointment.id], 'doctor')
+
+    res.send({ ...appointment, type: 'Appointment', status, token })
   } catch (err) {
     handleError(req, res, err)
   }
@@ -369,7 +383,31 @@ app.get('/profile/patient/appointments', keycloak.protect('realm:patient'), asyn
       return { ...event, type: 'Appointment', status }
     })
 
-    res.send(FHIRAppointments)
+    res.send({ appointments: FHIRAppointments, token: '' })
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
+
+app.get('/profile/patient/appointments/:id', keycloak.protect('realm:patient'), async (req, res) => {
+  try {
+    const resp = await axios.get<iHub.Appointment>(`/profile/patient/appointments/${req.params.id}?include=doctor`, {
+      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+    })
+
+    const appointment = resp.data
+
+    const minutes = differenceInMinutes(parseISO(appointment.start as any), Date.now())
+    let status = 'upcoming'
+    if (minutes < 15) {
+      const appointmentAddon = await CoreAppointment.findOne({ id: req.params.id })
+      status = appointmentAddon?.status || 'open'
+    }
+
+    let token = ''
+    if (status === 'open') token = createToken([appointment.id], 'patient')
+
+    res.send({ ...appointment, type: 'Appointment', status, token })
   } catch (err) {
     handleError(req, res, err)
   }

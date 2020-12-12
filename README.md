@@ -21,9 +21,10 @@ The server exposes APIs that are consumed by the web app and the mobile app.
 3. Create a `.env` file in the project's root folder and add these contents:
 
    ```
-   SECRET = secure_server_secret
+   SECRET = Secure Secret for Sessions
    MONGODB_URI = mongodb://localhost:27017/boldo
    REDIS_URL = 127.0.0.1:6379
+   PRIVATE_KEY = RSA256 Private Key (e.g. `-----BEGIN RSA PRIVATE KEY-----\nMI...`)
 
    IHUB_ADDRESS = https://sso-test.pti.org.py/api
 
