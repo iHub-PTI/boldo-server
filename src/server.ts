@@ -418,7 +418,7 @@ app.get('/profile/patient/appointments/:id', keycloak.protect('realm:patient'), 
     }
 
     let token = ''
-    if (appointment.status === 'open') token = createToken([appointment.id], 'doctor')
+    if (appointment.status === 'open') token = createToken([appointment.id], 'patient')
 
     res.send({ ...appointment, token })
   } catch (err) {
