@@ -218,42 +218,43 @@ app.get(
 
     const { status, start, end } = req.query
 
-    let coreAppointments = [] as (iHub.Appointment & { type: string; status: ICoreAppointment['status'] })[]
-    let appointments = [] as IAppointment[]
-    let token = ''
-
     try {
-      const resp = await axios.get<iHub.Appointment[]>(
+      const { data } = await axios.get<iHub.Appointment[]>(
         `/profile/doctor/appointments?include=patient${start && end ? `&start=${start}&end=${end}` : ''}`,
         {
           headers: { Authorization: `Bearer ${getAccessToken(req)}` },
         }
       )
-      const ids = resp.data.map(app => app.id)
-      const appointmentsAddon = await CoreAppointment.find({ id: { $in: ids } })
+      const ids = data.map(appointment => appointment.id)
+      const coreAppointments = await CoreAppointment.find({ id: { $in: ids } })
 
-      coreAppointments = resp.data.map(event => {
-        let status = 'upcoming' as ICoreAppointment['status']
-        const minutes = differenceInMinutes(parseISO(event.start as any), Date.now())
-        if (minutes < 15) {
-          const appointmentAddon = appointmentsAddon.find(app => app.id === event.id)
-          status = appointmentAddon?.status || 'open'
+      let FHIRAppointments = [] as (iHub.Appointment & { type: string; status: ICoreAppointment['status'] })[]
+
+      FHIRAppointments = coreAppointments.map(appointment => {
+        const FHIRAppointment = data.find(app => app.id === appointment.id)
+        if (!FHIRAppointment) throw new Error(`FHIR Appointment must exist but not found for ID: ${appointment.id}!`)
+
+        const minutes = differenceInMinutes(parseISO(FHIRAppointment.start as any), Date.now())
+        if (minutes < 15 && appointment.status === 'upcoming') {
+          return { ...FHIRAppointment, type: 'Appointment', status: 'open' }
+        } else {
+          return { ...FHIRAppointment, type: 'Appointment', status: appointment.status }
         }
-        return { ...event, type: 'Appointment', status }
       })
 
+      let token = ''
       if (status) {
-        coreAppointments = coreAppointments.filter(appointment => appointment.status === status)
+        FHIRAppointments = FHIRAppointments.filter(appointment => appointment.status === status)
         if (status === 'open') {
-          token = createToken(
-            coreAppointments.map(app => app.id),
-            'doctor'
-          )
+          const ids = FHIRAppointments.map(app => app.id)
+          token = createToken(ids, 'doctor')
         }
       }
+
+      let appointments = [] as IAppointment[]
       if (!status) appointments = await Appointment.find({ doctorId: req.userId })
 
-      res.send({ appointments: [...coreAppointments, ...appointments], token })
+      res.send({ appointments: [...FHIRAppointments, ...appointments], token })
     } catch (err) {
       handleError(req, res, err)
     }
@@ -283,24 +284,31 @@ app.post(
 )
 
 app.get('/profile/doctor/appointments/:id', keycloak.protect('realm:doctor'), async (req, res) => {
+  const { id } = req.params
+
   try {
-    const resp = await axios.get<iHub.Appointment>(`/profile/doctor/appointments/${req.params.id}?include=patient`, {
-      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
-    })
+    const { data: FHIRAppointment } = await axios.get<iHub.Appointment>(
+      `/profile/doctor/appointments/${id}?include=patient`,
+      {
+        headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+      }
+    )
 
-    const appointment = resp.data
+    const coreAppointment = await CoreAppointment.findOne({ id })
+    if (!coreAppointment) throw new Error(`Core Appointment must exist but not found for ID: ${id}!`)
 
-    const minutes = differenceInMinutes(parseISO(appointment.start as any), Date.now())
-    let status = 'upcoming'
-    if (minutes < 15) {
-      const appointmentAddon = await CoreAppointment.findOne({ id: req.params.id })
-      status = appointmentAddon?.status || 'open'
+    let appointment
+    const minutes = differenceInMinutes(parseISO(FHIRAppointment.start as any), Date.now())
+    if (minutes < 15 && coreAppointment.status === 'upcoming') {
+      appointment = { ...FHIRAppointment, type: 'Appointment', status: 'open' }
+    } else {
+      appointment = { ...FHIRAppointment, type: 'Appointment', status: coreAppointment.status }
     }
 
     let token = ''
-    if (status === 'open') token = createToken([appointment.id], 'doctor')
+    if (appointment.status === 'open') token = createToken([appointment.id], 'doctor')
 
-    res.send({ ...appointment, type: 'Appointment', status, token })
+    res.send({ ...appointment, token })
   } catch (err) {
     handleError(req, res, err)
   }
@@ -315,10 +323,11 @@ app.post(
     if (!validate(req, res)) return
 
     const { status } = req.body
+    const { id } = req.params
 
     try {
       // Get Appointment and check for access rights
-      const req1 = axios.get<iHub.Appointment>(`/profile/doctor/appointments/${req.params.id}`, {
+      const req1 = axios.get<iHub.Appointment>(`/profile/doctor/appointments/${id}`, {
         headers: { Authorization: `Bearer ${getAccessToken(req)}` },
       })
       const req2 = axios.get<iHub.Appointment>(`/profile/doctor`, {
@@ -328,18 +337,13 @@ app.post(
 
       if (resp.data.doctorId !== respp.data.id) return res.sendStatus(403)
 
-      let appointment = await CoreAppointment.findOne({ id: req.params.id })
-      if (!appointment) {
-        appointment = await CoreAppointment.create({
-          date: new Date(resp.data.start),
-          status,
-          id: resp.data.id,
-        })
-      } else if (appointment.status === 'locked') return res.status(400).send({ message: 'Appointment locked' })
-      else {
-        const update = await CoreAppointment.updateOne({ id: req.params.id }, { status })
-        if (update.nModified !== 1) return res.status(400).send({ message: 'Update not successful' })
-      }
+      let appointment = await CoreAppointment.findOne({ id })
+      if (!appointment) throw new Error(`Core Appointment must exist but not found for ID: ${id}!`)
+
+      if (appointment.status === 'locked') return res.status(400).send({ message: 'Appointment locked' })
+
+      const update = await CoreAppointment.updateOne({ id }, { status })
+      if (update.nModified !== 1) return res.status(400).send({ message: 'Update not successful' })
 
       res.sendStatus(200)
     } catch (err) {
@@ -366,21 +370,23 @@ app.delete('/profile/doctor/appointments/:id', keycloak.protect('realm:doctor'),
 
 app.get('/profile/patient/appointments', keycloak.protect('realm:patient'), async (req, res) => {
   try {
-    const resp = await axios.get<iHub.Appointment[]>('/profile/patient/appointments?include=doctor', {
+    const { data } = await axios.get<iHub.Appointment[]>('/profile/patient/appointments?include=doctor', {
       headers: { Authorization: `Bearer ${getAccessToken(req)}` },
     })
 
-    const ids = resp.data.map(app => app.id)
-    const appointmentsAddon = await CoreAppointment.find({ id: { $in: ids } })
+    const ids = data.map(app => app.id)
+    const coreAppointments = await CoreAppointment.find({ id: { $in: ids } })
 
-    const FHIRAppointments = resp.data.map(event => {
-      let status = 'upcoming'
-      const minutes = differenceInMinutes(parseISO(event.start as any), Date.now())
-      if (minutes < 15) {
-        const appointmentAddon = appointmentsAddon.find(app => app.id === event.id)
-        status = appointmentAddon?.status || 'open'
+    const FHIRAppointments = coreAppointments.map(appointment => {
+      const FHIRAppointment = data.find(app => app.id === appointment.id)
+      if (!FHIRAppointment) throw new Error(`FHIR Appointment must exist but not found for ID: ${appointment.id}!`)
+
+      const minutes = differenceInMinutes(parseISO(FHIRAppointment.start as any), Date.now())
+      if (minutes < 15 && appointment.status === 'upcoming') {
+        return { ...FHIRAppointment, type: 'Appointment', status: 'open' }
+      } else {
+        return { ...FHIRAppointment, type: 'Appointment', status: appointment.status }
       }
-      return { ...event, type: 'Appointment', status }
     })
 
     res.send({ appointments: FHIRAppointments, token: '' })
@@ -390,24 +396,31 @@ app.get('/profile/patient/appointments', keycloak.protect('realm:patient'), asyn
 })
 
 app.get('/profile/patient/appointments/:id', keycloak.protect('realm:patient'), async (req, res) => {
+  const { id } = req.params
+
   try {
-    const resp = await axios.get<iHub.Appointment>(`/profile/patient/appointments/${req.params.id}?include=doctor`, {
-      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
-    })
+    const { data: FHIRAppointment } = await axios.get<iHub.Appointment>(
+      `/profile/patient/appointments/${id}?include=doctor`,
+      {
+        headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+      }
+    )
 
-    const appointment = resp.data
+    const coreAppointment = await CoreAppointment.findOne({ id })
+    if (!coreAppointment) throw new Error(`Core Appointment must exist but not found for ID: ${id}!`)
 
-    const minutes = differenceInMinutes(parseISO(appointment.start as any), Date.now())
-    let status = 'upcoming'
-    if (minutes < 15) {
-      const appointmentAddon = await CoreAppointment.findOne({ id: req.params.id })
-      status = appointmentAddon?.status || 'open'
+    let appointment
+    const minutes = differenceInMinutes(parseISO(FHIRAppointment.start as any), Date.now())
+    if (minutes < 15 && coreAppointment.status === 'upcoming') {
+      appointment = { ...FHIRAppointment, type: 'Appointment', status: 'open' }
+    } else {
+      appointment = { ...FHIRAppointment, type: 'Appointment', status: coreAppointment.status }
     }
 
     let token = ''
-    if (status === 'open') token = createToken([appointment.id], 'patient')
+    if (appointment.status === 'open') token = createToken([appointment.id], 'doctor')
 
-    res.send({ ...appointment, type: 'Appointment', status, token })
+    res.send({ ...appointment, token })
   } catch (err) {
     handleError(req, res, err)
   }
