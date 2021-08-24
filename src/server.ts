@@ -134,11 +134,12 @@ app.get('/profile/doctor', keycloak.protect('realm:doctor'), async (req, res) =>
   try {
     const doctor = await Doctor.findById(req.userId)
     const openHours = doctor?.openHours || { mon: [], tue: [], wed: [], thu: [], fri: [], sat: [], sun: [] }
-
+    console.log(`Bearer ${getAccessToken(req)}`)
     const resp = await axios.get('/profile/doctor', { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
 
     res.send({ ...resp.data, openHours, new: !doctor })
   } catch (err) {
+    console.log(err)
     handleError(req, res, err)
   }
 })
@@ -193,6 +194,63 @@ app.post('/profile/patient', keycloak.protect('realm:patient'), async (req, res)
   try {
     await axios.put('/profile/patient', payload, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
     res.sendStatus(200)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
+
+//
+// MEDICATIONS:
+// Protected routes for managing medications
+// GET /medications - Read medications
+//
+
+app.get('/medications', query('content').isString().optional(), async (req: any, res) => {
+  if (!validate(req, res)) return
+
+  const { content } = req.query as any
+
+  try {
+    const resp = await axios.get(`/medications${content ? `?content=${content}` : ''}`, {
+      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+    })
+    res.send({ items: resp.data.items })
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
+
+//
+// ENCOUNTER:
+// Protected routes for managing encounters
+// PUT /profile/doctor/appointments/:id/encounter - Update the encounter
+// GET /profile/doctor/appointments/:id/encounter - Get the encounter
+//
+
+app.put('/profile/doctor/appointments/:id/encounter', keycloak.protect('realm:doctor'), async (req, res) => {
+  if (!validate(req, res)) return
+  const { id } = req.params
+  const { encounterData } = req.body
+
+  try {
+    await axios.put(`/profile/doctor/appointments/${id}/encounter`, encounterData, {
+      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+    })
+    res.sendStatus(200)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
+
+app.get('/profile/doctor/appointments/:id/encounter', keycloak.protect('realm:doctor'), async (req, res) => {
+  if (!validate(req, res)) return
+  const { id } = req.params
+
+  try {
+    const response = await axios.get(`/profile/doctor/appointments/${id}/encounter`, {
+      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+    })
+    res.send({ encounter: response.data })
   } catch (err) {
     handleError(req, res, err)
   }
@@ -360,6 +418,22 @@ app.delete('/profile/doctor/appointments/:id', keycloak.protect('realm:doctor'),
     handleError(req, res, err)
   }
 })
+//
+// PRESCRIPTIONS for PATIENTS:
+// Protected Routes for managing profile prescriptions
+// GET /profile/patient/prescriptions - Read prescriptions of Patient
+//
+app.get('/profile/patient/prescriptions', keycloak.protect('realm:patient'), async (req, res) => {
+  try {
+    const { data } = await axios.get<iHub.Appointment[]>('/profile/patient/prescriptions', {
+      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+    })
+
+    res.send({ prescriptions: data })
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
 
 //
 // APPOINTMENTS for PATIENTS:
@@ -370,9 +444,12 @@ app.delete('/profile/doctor/appointments/:id', keycloak.protect('realm:doctor'),
 
 app.get('/profile/patient/appointments', keycloak.protect('realm:patient'), async (req, res) => {
   try {
-    const { data } = await axios.get<iHub.Appointment[]>('/profile/patient/appointments?include=doctor', {
-      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
-    })
+    const { data } = await axios.get<iHub.Appointment[]>(
+      `/profile/patient/appointments?start=${req.query.start}&include=doctor`,
+      {
+        headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+      }
+    )
 
     const ids = data.map(app => app.id)
     const coreAppointments = await CoreAppointment.find({ id: { $in: ids } })
@@ -541,6 +618,7 @@ app.get(
       // FIXME: nextAvailability is runing the whole loop again.
       // Could be done in one loop in the case that start = now
       // Also starts two workers. Could start one
+      console.log(availabilities, nextAvailability)
       res.send({ availabilities, nextAvailability })
     } catch (err) {
       handleError(req, res, err)

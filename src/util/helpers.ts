@@ -63,6 +63,7 @@ export const calculateAvailability = async (doctorId: string, start: Date, end: 
 
     return availabilities
   } catch (err) {
+    console.log('ERR HERE1')
     throw err
   }
 }
