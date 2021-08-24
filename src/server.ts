@@ -224,6 +224,7 @@ app.get('/medications', query('content').isString().optional(), async (req: any,
 // ENCOUNTER:
 // Protected routes for managing encounters
 // PUT /profile/doctor/appointments/:id/encounter - Update the encounter
+// GET /profile/doctor/appointments/:id/encounter - Get the encounter
 //
 
 app.put('/profile/doctor/appointments/:id/encounter', keycloak.protect('realm:doctor'), async (req, res) => {
@@ -236,6 +237,20 @@ app.put('/profile/doctor/appointments/:id/encounter', keycloak.protect('realm:do
       headers: { Authorization: `Bearer ${getAccessToken(req)}` },
     })
     res.sendStatus(200)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
+
+app.get('/profile/doctor/appointments/:id/encounter', keycloak.protect('realm:doctor'), async (req, res) => {
+  if (!validate(req, res)) return
+  const { id } = req.params
+
+  try {
+    const response = await axios.get(`/profile/doctor/appointments/${id}/encounter`, {
+      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+    })
+    res.send({ encounter: response.data })
   } catch (err) {
     handleError(req, res, err)
   }
@@ -403,6 +418,22 @@ app.delete('/profile/doctor/appointments/:id', keycloak.protect('realm:doctor'),
     handleError(req, res, err)
   }
 })
+//
+// PRESCRIPTIONS for PATIENTS:
+// Protected Routes for managing profile prescriptions
+// GET /profile/patient/prescriptions - Read prescriptions of Patient
+//
+app.get('/profile/patient/prescriptions', keycloak.protect('realm:patient'), async (req, res) => {
+  try {
+    const { data } = await axios.get<iHub.Appointment[]>('/profile/patient/prescriptions', {
+      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+    })
+
+    res.send({ prescriptions: data })
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
 
 //
 // APPOINTMENTS for PATIENTS:
@@ -413,9 +444,12 @@ app.delete('/profile/doctor/appointments/:id', keycloak.protect('realm:doctor'),
 
 app.get('/profile/patient/appointments', keycloak.protect('realm:patient'), async (req, res) => {
   try {
-    const { data } = await axios.get<iHub.Appointment[]>('/profile/patient/appointments?include=doctor', {
-      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
-    })
+    const { data } = await axios.get<iHub.Appointment[]>(
+      `/profile/patient/appointments?start=${req.query.start}&include=doctor`,
+      {
+        headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+      }
+    )
 
     const ids = data.map(app => app.id)
     const coreAppointments = await CoreAppointment.find({ id: { $in: ids } })
