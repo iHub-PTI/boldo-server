@@ -157,6 +157,19 @@ app.get('/inactive', keycloak.protect('realm:doctor'), async (req, res) => {
   }
 })
 
+app.post('/user/validate', keycloak.protect('realm:doctor'), async (req, res) => {
+  const payload = req.body
+  try {
+    const resp =  await axios.put(`profile/doctor/validatePatient?username=${payload.username}`, payload, {
+      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+    })
+    res.send(resp.data)
+  } catch (err) {
+    res.send(err)
+    handleError(req, res, err)
+  }
+})
+
 app.post(
   '/profile/doctor',
   keycloak.protect('realm:doctor'),
