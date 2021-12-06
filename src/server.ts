@@ -144,6 +144,19 @@ app.get('/profile/doctor', keycloak.protect('realm:doctor'), async (req, res) =>
   }
 })
 
+app.get('/inactive', keycloak.protect('realm:doctor'), async (req, res) => {
+  try {
+    const resp = await axios.get('/profile/doctor/inactivePatients', {
+      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+    })
+    res.send({ ...resp.data })
+  } catch (err) {
+    console.log(err)
+    res.send(err)
+    handleError(req, res, err)
+  }
+})
+
 app.post(
   '/profile/doctor',
   keycloak.protect('realm:doctor'),
