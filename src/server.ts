@@ -170,6 +170,19 @@ app.post('/user/validate', keycloak.protect('realm:doctor'), async (req, res) =>
   }
 })
 
+app.get('/profile/doctor/relatedEncounters/Patient/:id', keycloak.protect('realm:doctor'), async (req, res) => {
+  if (!validate(req, res)) return
+  const { id } = req.params
+  try {
+    const response = await axios.get(`/profile/doctor/relatedEncounters/Patient/${id}?lastOnly=true`, {
+      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+    })
+    res.send({ encounter: response.data })
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
+
 app.post(
   '/profile/doctor',
   keycloak.protect('realm:doctor'),
