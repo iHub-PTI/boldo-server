@@ -196,7 +196,19 @@ app.get('/profile/doctor/relatedEncounters/:id', keycloak.protect('realm:doctor'
   }
 })
 
-
+app.post('/profile/doctor/encounters/:id/privateComments', keycloak.protect('realm:doctor'), async (req, res) => {
+  const payload = req.body
+  const { id } = req.params
+  try {
+    const resp =  await axios.post(`/profile/doctor/encounters/${id}/privateComments`, payload, {
+      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+    })
+    res.send(resp.data)
+  } catch (err) {
+    res.send(err)
+    handleError(req, res, err)
+  }
+})
 
 app.post(
   '/profile/doctor',
