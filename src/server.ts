@@ -170,6 +170,60 @@ app.post('/user/validate', keycloak.protect('realm:doctor'), async (req, res) =>
   }
 })
 
+app.get('/profile/doctor/relatedEncounters/Patient/:id/filterEncounterId/:encounterId', keycloak.protect('realm:doctor'), async (req, res) => {
+  if (!validate(req, res)) return
+  const { id, encounterId } = req.params
+  try {
+    const response = await axios.get(`/profile/doctor/relatedEncounters/Patient/${id}?lastOnly=true&filterEncounterId=${encounterId}`, {
+      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+    })
+    res.send({ encounter: response.data })
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
+
+app.get('/profile/doctor/relatedEncounters/:id', keycloak.protect('realm:doctor'), async (req, res) => {
+  if (!validate(req, res)) return
+  const { id, encounterId } = req.params
+  try {
+    const response = await axios.get(`/profile/doctor/relatedEncounters/${id}?includePrescriptions=false&includeSoep=true`, {
+      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+    })
+    res.send({ encounter: response.data })
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
+
+app.post('/profile/doctor/encounters/:id/privateComments', keycloak.protect('realm:doctor'), async (req, res) => {
+  const payload = req.body
+  const { id } = req.params
+  try {
+    const resp =  await axios.post(`/profile/doctor/encounters/${id}/privateComments`, payload, {
+      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+    })
+    res.send(resp.data)
+  } catch (err) {
+    res.send(err)
+    handleError(req, res, err)
+  }
+})
+
+
+app.get('/profile/doctor/relatedEncounters/:id/privateComments', keycloak.protect('realm:doctor'), async (req, res) => {
+  if (!validate(req, res)) return
+  const { id} = req.params
+  try {
+    const response = await axios.get(`/profile/doctor/relatedEncounters/${id}/privateComments`, {
+      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+    })
+    res.send({ encounter: response.data })
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
+
 app.post(
   '/profile/doctor',
   keycloak.protect('realm:doctor'),
