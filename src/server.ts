@@ -224,6 +224,21 @@ app.get('/profile/doctor/relatedEncounters/:id/privateComments', keycloak.protec
   }
 })
 
+app.put('/profile/doctor/encounters/:encounterId/privateComments/:privateCommentId', keycloak.protect('realm:doctor'), async (req, res) => {
+  if (!validate(req, res)) return
+  const { encounterId,privateCommentId } = req.params
+  const payload = req.body
+  try {
+    const response = await axios.put(`/profile/doctor/encounters/${encounterId}/privateComments/${privateCommentId}`, payload, {
+      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+    })
+    res.send({ encounter: response.data })
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
+
+
 app.post(
   '/profile/doctor',
   keycloak.protect('realm:doctor'),
