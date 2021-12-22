@@ -210,7 +210,6 @@ app.post('/profile/doctor/encounters/:id/privateComments', keycloak.protect('rea
   }
 })
 
-
 app.get('/profile/doctor/relatedEncounters/:id/privateComments', keycloak.protect('realm:doctor'), async (req, res) => {
   if (!validate(req, res)) return
   const { id} = req.params
@@ -224,6 +223,28 @@ app.get('/profile/doctor/relatedEncounters/:id/privateComments', keycloak.protec
   }
 })
 
+app.delete(
+  '/profile/doctor/encounters/:encounterId/privateComments/:privateCommentId',
+  keycloak.protect('realm:doctor'),
+  async (req, res) => {
+    try {
+      const { encounterId, privateCommentId } = req.params
+
+      const headers = {
+        Authorization: `Bearer ${getAccessToken(req)}`,
+      }
+  
+      const response = await axios.delete(
+        `/profile/doctor/encounters/${encounterId}/privateComments/${privateCommentId}`,
+        { headers }
+      )
+
+      res.send(response.data)
+    } catch (err) {
+      handleError(req, res, err)
+    }
+  }
+)
 app.put('/profile/doctor/encounters/:encounterId/privateComments/:privateCommentId', keycloak.protect('realm:doctor'), async (req, res) => {
   if (!validate(req, res)) return
   const { encounterId,privateCommentId } = req.params
