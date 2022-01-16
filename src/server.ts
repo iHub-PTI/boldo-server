@@ -280,7 +280,7 @@ app.post(
 
     try {
       const resp = await axios.get('/profile/doctor', { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
-      await Doctor.findOneAndUpdate({ _id: req.userId, id: resp.data.id }, { openHours }, { upsert: true })
+      await Doctor.findOneAndUpdate({ _id: req.userId, id: resp.data.id }, { openHours } ,{ upsert: true, runValidators: true })
 
       await axios.put('/profile/doctor', ihubPayload, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
       res.sendStatus(200)
@@ -734,7 +734,7 @@ app.get(
       // FIXME: nextAvailability is runing the whole loop again.
       // Could be done in one loop in the case that start = now
       // Also starts two workers. Could start one
-      console.log(availabilities, nextAvailability)
+      console.log("final results availability: ",availabilities, nextAvailability)
       res.send({ availabilities, nextAvailability })
     } catch (err) {
       handleError(req, res, err)
