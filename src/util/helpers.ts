@@ -5,7 +5,7 @@ import { validationResult } from 'express-validator'
 import jwt from 'jsonwebtoken'
 
 import { createLoginUrl } from './kc-helpers'
-import {calculateOpenIntervals} from '../worker/getOpenIntervals'
+import calculateOpenIntervals from '../worker/getOpenIntervals'
 import Appointment from '../models/Appointment'
 import Doctor, { IDoctor } from '../models/Doctor'
 import { ICoreAppointment } from '../models/CoreAppointment'
@@ -42,9 +42,8 @@ export const calculateAvailability = async (doctorId: string, start: Date, end: 
     const openHourDates = calculateOpenHours(doctor.openHours, start, end) as unknown as [number,number,string][]
 
     // Calcualte availability intervals
-    const openIntervals = await calculateOpenIntervals(openHourDates, blockedIntervals) as [number,number,string][]
+    const openIntervals = await calculateOpenIntervals({base:openHourDates, substract:blockedIntervals}) as [number,number,string][]
     // Slize availabilities into junks of appointment lengths
-    
     const availabilities = openIntervals
       .flatMap(interval => {
         const i = interval as unknown as [number,number,string]
@@ -66,7 +65,6 @@ export const calculateAvailability = async (doctorId: string, start: Date, end: 
       .filter(date => date[0] >= start && date[0] <= end) 
       .map(date => [(date[0] as Date).toISOString(),date[1]] as unknown as [string, string])
 
-    console.log("Availabilities",availabilities)
     return availabilities
   } catch (err) {
     console.log('ERR HERE1')
