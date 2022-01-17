@@ -153,30 +153,3 @@ export const createToken = (ids: string[], subject: 'patient' | 'doctor') => {
     throw err
   }
 }
-
-
-//previoulsy inside worker/getOpenIntervals
-// Source and explanation: https://stackoverflow.com/a/6463030/5157205
-// const rangeDiff = (r1 : Interval, r2: Interval) => {
-//   const [s1, e1] = r1 
-//   const [s2, e2] = r2
-//   const endpoints = [s1, e1, s2, e2].sort((a, b) => a - b)
-//   const result = []
-//   if (endpoints[0] === s1) result.push([endpoints[0], endpoints[1]])
-//   if (endpoints[3] === e1) result.push([endpoints[2], endpoints[3]])
-//   return result
-// }
-
-
-//  const calculateOpenIntervals = async (r1_list: [number,number,string][], r2_list:Interval[]) : Promise<[number,number,string][]> => {
-//   r2_list.forEach(r2 => {
-//     let list = [] as [number,number,string][]
-//     r1_list.forEach(r1 => {
-//       let aux = [...list, ...rangeDiff([r1[0],r1[1]], r2).map(e => [e,r1[1]]) ] 
-//       list = aux as [number,number,string][]
-//     })
-//     r1_list = list
-//   })
-
-//   return r1_list
-// }
