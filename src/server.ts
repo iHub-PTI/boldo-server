@@ -643,7 +643,7 @@ app.post(
       const availabilities = await calculateAvailability(doctorId, startDate, endDate)
       const available = availabilities.map(date => Date.parse(date[0])).includes(Date.parse(start))
       if (!available) return res.status(400).send({ message: 'timeslot is not available for booking' })
-      const isAppType = availabilities.filter(av => Date.parse(av[0]) == Date.parse(start) && av[1] == appointmentType).length > 0
+      const isAppType = availabilities.filter(av => Date.parse(av[0]) == Date.parse(start) && av[1].includes(appointmentType)).length > 0
       if (!isAppType) return res.status(400).send({ message: 'Wrong Appointment Type' })
 
       const appointment = await CoreAppointment.create({appointmentType:appointmentType, date: startDate, status: 'upcoming', id: '_' })
