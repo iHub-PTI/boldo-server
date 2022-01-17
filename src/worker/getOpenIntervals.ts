@@ -70,7 +70,9 @@
 import {Interval} from '../util/helpers'
 
 // Source and explanation: https://stackoverflow.com/a/6463030/5157205
- const rangeDiff = (r1 : Interval, r2: Interval) => {
+//previoulsy inside worker/getOpenIntervals
+// Source and explanation: https://stackoverflow.com/a/6463030/5157205
+const rangeDiff = (r1 : Interval, r2: Interval) => {
   const [s1, e1] = r1 
   const [s2, e2] = r2
   const endpoints = [s1, e1, s2, e2].sort((a, b) => a - b)
@@ -81,12 +83,12 @@ import {Interval} from '../util/helpers'
 }
 
 
-export const calculateOpenIntervals = (r1_list: [Interval,string][], r2_list:Interval[]) => {
+export const calculateOpenIntervals = async (r1_list: [number,number,string][], r2_list:Interval[]) : Promise<[number,number,string][]> => {
   r2_list.forEach(r2 => {
-    let list = [] as [Interval,string][]
+    let list = [] as [number,number,string][]
     r1_list.forEach(r1 => {
-      let aux = [...list, ...rangeDiff(r1[0], r2).map(e => [e,r1[1]]) ] 
-      list = aux as [Interval,string][]
+      let aux = [...list, ...rangeDiff([r1[0],r1[1]], r2).map(e => [e,r1[1]]) ] 
+      list = aux as [number,number,string][]
     })
     r1_list = list
   })
