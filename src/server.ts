@@ -280,7 +280,7 @@ app.post(
 
     try {
       const resp = await axios.get('/profile/doctor', { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
-      await Doctor.findOneAndUpdate({ _id: req.userId, id: resp.data.id }, { openHours }, { upsert: true })
+      await Doctor.findOneAndUpdate({ _id: req.userId, id: resp.data.id }, { openHours } ,{ upsert: true, runValidators: true })
 
       await axios.put('/profile/doctor', ihubPayload, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
       res.sendStatus(200)
@@ -442,14 +442,15 @@ app.post(
   body('name').isString(),
   body(['start', 'end']).isISO8601(),
   body('description').isString().optional(),
+  body('appointmentType').isString(),
   async (req, res) => {
     if (!validate(req, res)) return
     if (!req.userId) return res.sendStatus(500)
 
-    const { type, name, start, end, description } = req.body
+    const { type, name, start, end, description,appointmentType } = req.body
 
     try {
-      const appointment = await Appointment.create({ type, name, start, end, description, doctorId: req.userId })
+      const appointment = await Appointment.create({appointmentType, type, name, start, end, description, doctorId: req.userId })
       res.send(appointment)
     } catch (err) {
       handleError(req, res, err)
@@ -624,11 +625,12 @@ app.post(
   keycloak.protect('realm:patient'),
   body('doctorId').isString(),
   body('start').isISO8601(),
+  body('appointmentType').isString(), 
   async (req, res) => {
     if (!validate(req, res)) return
-
-    const { start, doctorId } = req.body
-
+    
+    const { start, doctorId,appointmentType } = req.body
+    if (!["V","A"].includes(appointmentType)) res.status(400).send({ message: "Appointmente type must be Virtual (V) or Ambulatory (A)" })
     const startDate = new Date(start)
     const endDate = new Date(start)
     endDate.setMilliseconds(endDate.getMilliseconds() + APPOINTMENT_LENGTH)
@@ -639,14 +641,16 @@ app.post(
 
     try {
       const availabilities = await calculateAvailability(doctorId, startDate, endDate)
-      const available = availabilities.map(date => Date.parse(date)).includes(Date.parse(start))
+      const available = availabilities.map(date => Date.parse(date[0])).includes(Date.parse(start))
       if (!available) return res.status(400).send({ message: 'timeslot is not available for booking' })
+      const isAppType = availabilities.filter(av => Date.parse(av[0]) == Date.parse(start) && av[1].includes(appointmentType)).length > 0
+      if (!isAppType) return res.status(400).send({ message: 'Wrong Appointment Type' })
 
-      const appointment = await CoreAppointment.create({ date: startDate, status: 'upcoming', id: '_' })
+      const appointment = await CoreAppointment.create({appointmentType:appointmentType, date: startDate, status: 'upcoming', id: '_' })
 
       const resp = await axios.post(
         '/profile/patient/appointments',
-        { doctorId, start, end: endDate.toISOString() },
+        { doctorId, start, end: endDate.toISOString(),appointmentType },
         {
           headers: { Authorization: `Bearer ${getAccessToken(req)}` },
         }
@@ -734,7 +738,7 @@ app.get(
       // FIXME: nextAvailability is runing the whole loop again.
       // Could be done in one loop in the case that start = now
       // Also starts two workers. Could start one
-      console.log(availabilities, nextAvailability)
+      console.log("final results availability: ",availabilities, nextAvailability)
       res.send({ availabilities, nextAvailability })
     } catch (err) {
       handleError(req, res, err)

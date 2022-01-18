@@ -10,7 +10,7 @@ import Appointment from '../models/Appointment'
 import Doctor, { IDoctor } from '../models/Doctor'
 import { ICoreAppointment } from '../models/CoreAppointment'
 
-type Interval = [number, number]
+export type Interval = [number, number]
 
 export const APPOINTMENT_LENGTH = 30 /**minutes in milliseconds*/ * 1000 * 60
 
@@ -39,27 +39,31 @@ export const calculateAvailability = async (doctorId: string, start: Date, end: 
     const blockedIntervals = [...boldoAppointments, ...iHubAppointments] as Interval[]
 
     // Expand openingHours to intervals
-    const openHourDates = calculateOpenHours(doctor.openHours, start, end) as Interval[]
+    const openHourDates = calculateOpenHours(doctor.openHours, start, end) as unknown as [number,number,string][]
 
     // Calcualte availability intervals
-    const openIntervals = await calculateOpenIntervals({ base: openHourDates, substract: blockedIntervals })
-
+    const openIntervals = await calculateOpenIntervals({base:openHourDates, substract:blockedIntervals}) as [number,number,string][]
     // Slize availabilities into junks of appointment lengths
     const availabilities = openIntervals
       .flatMap(interval => {
-        const intervals = [] as number[]
-        let [start, end] = interval
-
+        const i = interval as unknown as [number,number,string]
+        const intervals = [] as [number,string][]
+        let start = i[0]
+        let end = i[1]
+        let appType = i[2]
+        
+        // let [start, end] = interval[0]
+        // let appType = interval[1]
         while (end - start >= APPOINTMENT_LENGTH) {
-          intervals.push(start)
+          intervals.push([start,appType])
           start = start + APPOINTMENT_LENGTH
         }
         return intervals
       })
-      .sort((a, b) => a - b)
-      .map(date => new Date(date))
-      .filter(date => date >= start && date <= end)
-      .map(date => date.toISOString())
+      .sort((a, b) => a[0] - b[0])
+      .map(date => [new Date(date[0]),date[1]] as [Date, string])
+      .filter(date => date[0] >= start && date[0] <= end) 
+      .map(date => [(date[0] as Date).toISOString(),date[1]] as unknown as [string, string])
 
     return availabilities
   } catch (err) {
@@ -85,7 +89,7 @@ const calculateOpenHours = (openHours: IDoctor['openHours'], start: Date, end: D
       let localEndDate = new Date(localDateString)
       localEndDate.setHours(0, openHour.end, 0)
 
-      return [localStartDate.getTime(), localEndDate.getTime()]
+      return [localStartDate.getTime(), localEndDate.getTime(), openHour.appointmentType]
     })
   })
 }
