@@ -13,13 +13,6 @@ export interface IDoctor extends Document {
   }
 }
 
-const appointmentTypeSchema: Schema = new Schema(
-  {
-    _id: String,
-     ap: String,enum: ['AV', 'V', 'A']
-  }
-)
-
 const DoctorSchema: Schema = new Schema(
   {
     _id: String,
