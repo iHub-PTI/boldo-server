@@ -65,7 +65,7 @@ export const calculateAvailability = async (doctorId: string, start: Date, end: 
       .filter(date => date[0] >= start && date[0] <= end) 
       .map(date => [(date[0] as Date).toISOString(),date[1]] as unknown as [string, string])
 
-    return availabilities
+    return availabilities.map(av => ({"availability":av[0],"appointmentType":av[1]}))
   } catch (err) {
     console.log('ERR HERE1')
     throw err
