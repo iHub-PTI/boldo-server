@@ -572,7 +572,7 @@ app.post('/profile/doctor/appointments/cancel/:id', keycloak.protect('realm:doct
     console.log("status from core-health: ", resp.status)
     //Success of request == 201 because it is a POST method
     if (resp.status == 201) {
-      await CoreAppointment.deleteOne({ id: appId })
+      await CoreAppointment.updateOne({ id: appId },{status:'cancelled'})
       res.sendStatus(200)
     }else{
       res.sendStatus(resp.status)
