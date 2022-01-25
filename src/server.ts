@@ -769,6 +769,7 @@ app.get('/doctors', async (req, res) => {
 
     // FIXME: this currently creates one worker per doctor with huge overhead.
     // Probably best to move this into a own worker.
+    
     const doctorsWithNextAvailability = await Promise.all(
       doctorsIHub.map(async doctor => ({
         ...doctor,
