@@ -24,6 +24,7 @@ import {
   APPOINTMENT_LENGTH,
   calculateNextAvailability,
   createToken,
+  filterByAppointmentAvailability as filterByTypeOfAvailability
 } from './util/helpers'
 
 // We use axios for queries to the iHub Server
@@ -699,7 +700,7 @@ app.post(
 // GET /doctors - Fetch and search doctors
 // GET /doctors/:id - Fetch doctor details
 // GET /doctors/:id/availability - Fetch doctor details
-//
+// 
 
 app.get('/doctors', async (req, res) => {
   try {
@@ -709,17 +710,33 @@ app.get('/doctors', async (req, res) => {
       `/doctors${queryString ? `?${queryString}` : ''}`
     )
 
+    let doctorsIHub = resp.data.items;
+    
+    if (queryString){
+      //creates a map from queryString
+      const qMap = queryString.split('&').reduce((mapAccumulator, obj) => {
+        let queryK = obj.split('=')[0]
+        let queryV = obj.split('=')[1]
+        mapAccumulator.set(queryK, queryV);
+        return mapAccumulator;
+      }, new Map());
+    
+      // check if the query key is in the request
+      if (qMap.has('typeOfAppointment') && qMap.get('typeOfAppointment')){
+        doctorsIHub = await filterByTypeOfAvailability(resp.data.items, qMap.get('typeOfAppointment'))
+      }
+    }
+
     // FIXME: this currently creates one worker per doctor with huge overhead.
     // Probably best to move this into a own worker.
-
     const doctorsWithNextAvailability = await Promise.all(
-      resp.data.items.map(async doctor => ({
+      doctorsIHub.map(async doctor => ({
         ...doctor,
         nextAvailability: await calculateNextAvailability(doctor.id),
       }))
     )
 
-    res.send({ items: doctorsWithNextAvailability, total: resp.data.total })
+    res.send({ items: doctorsWithNextAvailability, total: doctorsIHub.length })
   } catch (err) {
     handleError(req, res, err)
   }
