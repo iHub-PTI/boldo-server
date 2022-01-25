@@ -153,3 +153,30 @@ export const createToken = (ids: string[], subject: 'patient' | 'doctor') => {
     throw err
   }
 }
+
+export async function filterByAppointmentAvailability(doctors: iHub.Doctor[], typeOfAvailabilityParam: String){
+  if (!doctors){
+    //throw error cannot be empty
+    let a = 1
+  }
+
+  let ids = doctors.map(doctor => doctor.id);
+
+  //the filtering is done in the MongoDB
+  let doctorsIHub = await Doctor.find(
+    {'id': { $in:ids },
+    $or:[ 
+      {'openHours.mon': { $elemMatch: { appointmentType: {$regex: '.*' + typeOfAvailabilityParam + '.*' }}}},
+      {'openHours.tue': { $elemMatch: { appointmentType: {$regex: '.*' + typeOfAvailabilityParam + '.*' }}}},
+      {'openHours.wed': { $elemMatch: { appointmentType: {$regex: '.*' + typeOfAvailabilityParam + '.*' }}}},
+      {'openHours.thu': { $elemMatch: { appointmentType: {$regex: '.*' + typeOfAvailabilityParam + '.*' }}}},
+      {'openHours.sat': { $elemMatch: { appointmentType: {$regex: '.*' + typeOfAvailabilityParam + '.*' }}}},
+      {'openHours.sun': { $elemMatch: { appointmentType: {$regex: '.*' + typeOfAvailabilityParam + '.*' }}}}]}
+    );
+
+  var hashDociHubs = new Map(doctorsIHub.map(item => [item.id, item]));
+
+  //return only the doctos that were obtained from MongoDB
+  let doctorsToReturn = doctors.filter(doctor => hashDociHubs.get(doctor.id))
+  return doctorsToReturn
+}
