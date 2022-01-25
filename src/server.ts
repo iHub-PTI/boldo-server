@@ -407,7 +407,7 @@ app.get('/profile/doctor/appointments/:id/encounter', keycloak.protect('realm:do
 // GET /profile/doctor/appointments/:id - Read doctor appointment
 // POST /profile/doctor/appointments/:id - Update doctor appointment
 // DELETE /profile/doctor/appointments/:id - Delete doctor appointment
-//
+// POST /profile/doctor/appointments/cancel/:id - Cancel appointment by doctor 
 
 app.get(
   '/profile/doctor/appointments',
@@ -563,6 +563,26 @@ app.delete('/profile/doctor/appointments/:id', keycloak.protect('realm:doctor'),
   }
 })
 
+app.post('/profile/doctor/appointments/cancel/:id', keycloak.protect('realm:doctor'), async (req, res) => {
+  try {
+    let appId = req.params.id
+    const resp =  await axios.post(`/profile/doctor/appointments/cancel/${appId}`,{}, {
+      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+    })
+    console.log("status from core-health: ", resp.status)
+    //Success of request == 201 because it is a POST method
+    if (resp.status == 201) {
+      await CoreAppointment.updateOne({ id: appId },{status:'cancelled'})
+      res.sendStatus(200)
+    }else{
+      res.sendStatus(resp.status)
+    }
+  } catch (err) {
+    res.send(err)
+    handleError(req, res, err)
+  }
+})
+
 //
 // PRESCRIPTIONS for PATIENTS:
 // Protected Routes for managing profile prescriptions
@@ -692,6 +712,26 @@ app.post(
     }
   }
 )
+
+app.post('/profile/patient/appointments/cancel/:id', keycloak.protect('realm:patient'), async (req, res) => {
+  try {
+    let appId = req.params.id
+    const resp =  await axios.post(`/profile/patient/appointments/cancel/${appId}`,{}, {
+      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+    })
+    console.log("status from core-health: ", resp.status)
+    //Success of request == 201 because it is a POST method
+    if (resp.status == 201) {
+      await CoreAppointment.updateOne({ id: appId },{status:'cancelled'})
+      res.sendStatus(200)
+    }else{
+      res.sendStatus(resp.status)
+    }
+  } catch (err) {
+    res.send(err)
+    handleError(req, res, err)
+  }
+})
 
 //
 // Doctor
