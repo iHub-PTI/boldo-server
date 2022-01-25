@@ -156,8 +156,7 @@ export const createToken = (ids: string[], subject: 'patient' | 'doctor') => {
 
 export async function filterByAppointmentAvailability(doctors: iHub.Doctor[], typeOfAvailabilityParam: String){
   if (!doctors){
-    //throw error cannot be empty
-    let a = 1
+    return doctors;
   }
 
   let ids = doctors.map(doctor => doctor.id);
