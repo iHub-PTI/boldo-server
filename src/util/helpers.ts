@@ -27,7 +27,7 @@ export const calculateAvailability = async (doctorId: string, start: Date, end: 
     const startFHIR = new Date(start)
     startFHIR.setHours(startFHIR.getHours() - 1)
     const resp = await axios.get<iHub.Appointment[]>(
-      `/appointments?doctors=${doctorId}&start=${startFHIR.toISOString()}&end=${end.toISOString()}`
+      `/appointments?doctors=${doctorId}&start=${startFHIR.toISOString()}&end=${end.toISOString()}&status=Booked`
     )
 
     // Get the doctors other appointments
