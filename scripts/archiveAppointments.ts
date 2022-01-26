@@ -4,6 +4,9 @@ import mongoose from 'mongoose'
 
 import CoreAppointment from '../src/models/CoreAppointment'
 
+// This script update the status of CoreAppointments Documents in MongoDB 
+// It is executed periodically by a crontab 
+
 export const archiveAppointments = async () => {
   await mongoose.connect(`${process.env.MONGODB_URI}`, {
     useNewUrlParser: true,
@@ -12,12 +15,12 @@ export const archiveAppointments = async () => {
     useUnifiedTopology: true,
   })
 
-  const eightHoursAgo = new Date()
-  eightHoursAgo.setHours(eightHoursAgo.getHours() - 8)
+  const hoursAgo = new Date()
+  hoursAgo.setHours(hoursAgo.getHours() - 2)
 
   try {
     const res = await CoreAppointment.updateMany(
-      { date: { $lte: eightHoursAgo }, status: { $ne: 'locked' } },
+      { date: { $lte: hoursAgo }, status: { $ne: 'locked' } },
       { status: 'locked' }
     )
     console.log('🏛 ✅ DAILY ARCHIVE ORDERS TASK RESULTS: ', res)
