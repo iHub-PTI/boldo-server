@@ -721,9 +721,9 @@ app.get('/doctors', async (req, res) => {
         return mapAccumulator;
       }, new Map());
     
-      // check if the query key is in the request
-      if (qMap.has('typeOfAppointment') && qMap.get('typeOfAppointment')){
-        doctorsIHub = await filterByTypeOfAvailability(resp.data.items, qMap.get('typeOfAppointment'))
+      if (qMap.has('appointmentType') && qMap.get('appointmentType')){
+        //filter doctors by checking if they dispose with a schedule with the type of Appointment specified 
+        doctorsIHub = await filterByTypeOfAvailability(resp.data.items, qMap.get('appointmentType'))
       }
     }
 
