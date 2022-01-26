@@ -4,8 +4,9 @@ import mongoose from 'mongoose'
 
 import CoreAppointment from '../src/models/CoreAppointment'
 
-// This script update the status of CoreAppointments Documents in MongoDB 
+// This script updates the status of CoreAppointments Documents in MongoDB 
 // It is executed periodically by a crontab 
+// TODO: make it a ENV var 
 
 export const archiveAppointments = async () => {
   await mongoose.connect(`${process.env.MONGODB_URI}`, {
