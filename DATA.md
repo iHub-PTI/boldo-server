@@ -2,7 +2,7 @@
 
 ### Archive Data
 
-To lock all appointments that are 8 hours in the past, run:
+To lock all appointments that are 2 hours in the past, run:
 
 ```
 npm run archiveAppointmentsDev
