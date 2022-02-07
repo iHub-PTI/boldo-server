@@ -564,12 +564,9 @@ app.delete('/profile/doctor/appointments/:id', keycloak.protect('realm:doctor'),
   }
 })
 
-app.post('/profile/doctor/appointments/cancel/:id',
-keycloak.protect('realm:doctor'),
-async (req, res) => {
-  
+async function cancelAppointment(req : express.Request,res:express.Response, role : String) {
   try {
-    const resp =  await axios.post(`/profile/doctor/appointments/cancel/${req.params.id}`,{}, {
+    const resp =  await axios.post(`/profile/${role}/appointments/cancel/${req.params.id}`,{}, {
       headers: { Authorization: `Bearer ${getAccessToken(req)}` },
     })
     console.log("status from core-health: ", resp.status)
@@ -578,6 +575,12 @@ async (req, res) => {
   } catch (err) {
     handleError(req, res, err)
   }
+}
+
+app.post('/profile/doctor/appointments/cancel/:id',
+keycloak.protect('realm:doctor'),
+async (req, res) => {
+  cancelAppointment(req,res,'doctor')
 })
 
 //
@@ -602,7 +605,7 @@ app.get('/profile/patient/prescriptions', keycloak.protect('realm:patient'), asy
 // Protected Routes for managing profile information
 // GET /profile/patient/appointments - Read appointments of Patient
 // POST /profile/patient/appointments - Create appointment for Patient
-//
+// POST /profile/patient/appointments/cancel/:id - Cancel appointment by doctor 
 
 app.get('/profile/patient/appointments', keycloak.protect('realm:patient'), async (req, res) => {
   try {
@@ -713,17 +716,7 @@ app.post(
 app.post('/profile/patient/appointments/cancel/:id',
 keycloak.protect('realm:patient'),
 async (req, res) => {
-  
-  try {
-    const resp =  await axios.post(`/profile/patient/appointments/cancel/${req.params.id}`,{}, {
-      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
-    })
-    console.log("status from core-health: ", resp.status)
-    await CoreAppointment.updateOne({ id: req.params.id },{status:'cancelled'})
-    res.sendStatus(200)
-  } catch (err) {
-    handleError(req, res, err)
-  }
+  cancelAppointment(req,res,'patient')
 })
 
 //
