@@ -564,22 +564,18 @@ app.delete('/profile/doctor/appointments/:id', keycloak.protect('realm:doctor'),
   }
 })
 
-app.post('/profile/doctor/appointments/cancel/:id', keycloak.protect('realm:doctor'), async (req, res) => {
+app.post('/profile/doctor/appointments/cancel/:id',
+keycloak.protect('realm:doctor'),
+async (req, res) => {
+  
   try {
-    let appId = req.params.id
-    const resp =  await axios.post(`/profile/doctor/appointments/cancel/${appId}`,{}, {
+    const resp =  await axios.post(`/profile/doctor/appointments/cancel/${req.params.id}`,{}, {
       headers: { Authorization: `Bearer ${getAccessToken(req)}` },
     })
     console.log("status from core-health: ", resp.status)
-    //Success of request == 201 because it is a POST method
-    if (resp.status == 201) {
-      await CoreAppointment.updateOne({ id: appId },{status:'cancelled'})
-      res.sendStatus(200)
-    }else{
-      res.sendStatus(resp.status)
-    }
+    await CoreAppointment.updateOne({ id: req.params.id },{status:'cancelled'})
+    res.sendStatus(200)
   } catch (err) {
-    res.send(err)
     handleError(req, res, err)
   }
 })
@@ -714,22 +710,18 @@ app.post(
   }
 )
 
-app.post('/profile/patient/appointments/cancel/:id', keycloak.protect('realm:patient'), async (req, res) => {
+app.post('/profile/patient/appointments/cancel/:id',
+keycloak.protect('realm:patient'),
+async (req, res) => {
+  
   try {
-    let appId = req.params.id
-    const resp =  await axios.post(`/profile/patient/appointments/cancel/${appId}`,{}, {
+    const resp =  await axios.post(`/profile/patient/appointments/cancel/${req.params.id}`,{}, {
       headers: { Authorization: `Bearer ${getAccessToken(req)}` },
     })
     console.log("status from core-health: ", resp.status)
-    //Success of request == 201 because it is a POST method
-    if (resp.status == 201) {
-      await CoreAppointment.updateOne({ id: appId },{status:'cancelled'})
-      res.sendStatus(200)
-    }else{
-      res.sendStatus(resp.status)
-    }
+    await CoreAppointment.updateOne({ id: req.params.id },{status:'cancelled'})
+    res.sendStatus(200)
   } catch (err) {
-    res.send(err)
     handleError(req, res, err)
   }
 })
