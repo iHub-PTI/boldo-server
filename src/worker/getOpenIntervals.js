@@ -1,39 +1,42 @@
+const { type } = require('os')
 const { Worker, isMainThread, parentPort, workerData } = require('worker_threads')
 
 /** @typedef {[number, number]} Interval */
+/** @typedef {[number, number,string]} Tup */
 
 // Source and explanation: https://stackoverflow.com/a/6463030/5157205
 /**
- * @param {Interval} r1
+ * @param {Tup} r1
  * @param {Interval} r2
  */
 const rangeDiff = (r1, r2) => {
-  const [s1, e1] = r1
+  const [s1, e1, at] = r1
   const [s2, e2] = r2
   const endpoints = [s1, e1, s2, e2].sort((a, b) => a - b)
 
   /**
-   * @type {Interval[]}
+   * @type {Tup[]}
    */
   const result = []
-  if (endpoints[0] === s1) result.push([endpoints[0], endpoints[1]])
-  if (endpoints[3] === e1) result.push([endpoints[2], endpoints[3]])
+  if (endpoints[0] === s1) result.push([endpoints[0], endpoints[1],at])
+  if (endpoints[3] === e1) result.push([endpoints[2], endpoints[3],at])
   return result
 }
 
 /**
- * @param {Interval[]} r1_list
+ * @param {Tup[]} r1_list
  * @param {Interval[]} r2_list
  */
 
 const multirangeDiff = (r1_list, r2_list) => {
   r2_list.forEach(r2 => {
     /**
-     * @type {Interval[]}
+     * @type {Tup[]}
      */
     let list = []
     r1_list.forEach(r1 => {
-      list = [...list, ...rangeDiff(r1, r2)]
+      list = [...list, ...rangeDiff([r1[0],r1[1],r1[2]], r2)]
+      
     })
     r1_list = list
   })
@@ -46,9 +49,9 @@ const multirangeDiff = (r1_list, r2_list) => {
  * Returns base - substract.
  *
  * @param {object} data
- * @param {Interval[]} data.base
+ * @param {Tup[]} data.base
  * @param {Interval[]} data.substract
- * @returns {Promise<Interval[]>}
+ * @returns {Promise<Tup[]>}
  */
 
 module.exports = function calculateOpenIntervals(data) {

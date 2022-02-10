@@ -49,6 +49,7 @@ export interface Appointment {
   id: string
   start: string
   end: string
+  appointmentType: "A"|"V"
   patientId: Patient['id']
   doctorId: Doctor['id']
   description: string
