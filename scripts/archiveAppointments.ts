@@ -46,7 +46,7 @@ export const archiveAppointments = async () => {
 
   try {
     const res = await CoreAppointment.updateMany(
-      { date: { $lte: hoursAgo }, status: { $ne: 'locked' } },
+      { date: { $lte: hoursAgo }, status: {$nin :["cancelled","locked"]} },
       { status: 'locked' }
     )
     console.log('🏛 ✅ DAILY ARCHIVE ORDERS TASK RESULTS: ', res)
