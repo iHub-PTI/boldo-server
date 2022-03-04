@@ -169,6 +169,7 @@ export async function filterByAppointmentAvailability(doctors: iHub.Doctor[], ty
       {'openHours.tue': { $elemMatch: { appointmentType: {$regex: '.*' + typeOfAvailabilityParam + '.*' }}}},
       {'openHours.wed': { $elemMatch: { appointmentType: {$regex: '.*' + typeOfAvailabilityParam + '.*' }}}},
       {'openHours.thu': { $elemMatch: { appointmentType: {$regex: '.*' + typeOfAvailabilityParam + '.*' }}}},
+      {'openHours.fri': { $elemMatch: { appointmentType: {$regex: '.*' + typeOfAvailabilityParam + '.*' }}}},
       {'openHours.sat': { $elemMatch: { appointmentType: {$regex: '.*' + typeOfAvailabilityParam + '.*' }}}},
       {'openHours.sun': { $elemMatch: { appointmentType: {$regex: '.*' + typeOfAvailabilityParam + '.*' }}}}]}
     );
