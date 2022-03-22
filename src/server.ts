@@ -364,6 +364,22 @@ app.get('/medications', query('content').isString().optional(), async (req: any,
   }
 })
 
+//MEDICATION FROM FARMANUARIO
+app.get('/medications/pharma', query('content').isString().optional(), async (req: any, res) => {
+  if (!validate(req, res)) return
+
+  const { content } = req.query as any
+
+  try {
+    const resp = await axios.get(`/medications/pharma/list${content ? `?content=${content}` : ''}`, {
+      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+    })
+    res.send({ items: resp.data.items })
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
+
 //
 // ENCOUNTER:
 // Protected routes for managing encounters
