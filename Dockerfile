@@ -3,7 +3,7 @@ ENV PORT=8008
 RUN mkdir -p /usr/src/app
 WORKDIR /usr/src/app
 COPY . /usr/src/app/
-COPY ./npmcron.cron /tmp/
+COPY ./nmpcron.cron /tmp/
 RUN apt-get update && apt-get install -y cron
 RUN touch /tmp/cron.log
 RUN crontab -u root /tmp/npmcron.cron
