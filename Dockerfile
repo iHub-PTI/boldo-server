@@ -3,13 +3,9 @@ ENV PORT=8008
 RUN mkdir -p /usr/src/app
 WORKDIR /usr/src/app
 COPY . /usr/src/app/
-# Upload our local files to /tmp in the container:
-COPY ./npmcron.* /tmp/
-# Install cron as it's not installed by the above image as default:
+COPY ./npmcron.cron /tmp/
 RUN apt-get update && apt-get install -y cron
-# Make the cron script executable, and touch the log file it will be writing to:
-RUN chmod +x /tmp/npmcron.sh && touch /tmp/cron.log
-# Install our cron job in root user's crontab, using the file we copied over above:
+RUN touch /tmp/cron.log
 RUN crontab -u root /tmp/npmcron.cron
 RUN npm i
 RUN npm run build
