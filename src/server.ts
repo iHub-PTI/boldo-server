@@ -351,6 +351,12 @@ app.post('/profile/patient', keycloak.protect('realm:patient'), async (req, res)
 // POST /profile/caretaker/appointments
 // GET /profile/caretaker/dependent/confirm/:id
 // GET /profile/caretaker/relationships
+// GET /profile/caretaker/dependent/s3/validateDocument/idCardParaguay/side1/uploadPresigned
+// POST /profile/caretaker/dependent/s3/validateDocument/idCardParaguay/side1/validate?hash=${hash}
+// GET /profile/caretaker/dependent/s3/validateDocument/idCardParaguay/side2/uploadPresigned?hash=${hash}
+// POST /profile/caretaker/dependent/s3/validateDocument/idCardParaguay/side2/validate?hash=${hash}
+// GET /profile/caretaker/dependent/s4/validateSelfie/uploadPresigned?hash=${hash}
+// POST /profile/caretaker/dependent/s4/validateSelfie/validate?hash=${hash}
 //
 app.get('/profile/caretaker/dependents', keycloak.protect('realm:patient'), async (req, res) => {
   try {
@@ -417,6 +423,69 @@ app.get('/profile/caretaker/relationships', keycloak.protect('realm:patient'), a
     handleError(req, res, err)
   }
 })
+
+app.get('/profile/caretaker/dependent/s3/validateDocument/idCardParaguay/side1/uploadPresigned', query('hash').isString().optional(), keycloak.protect('realm:patient'), async (req, res) => {
+  const { hash } = req.query as any
+  try {
+    const resp = await axios.get(`/profile/caretaker/dependent/s3/validateDocument/idCardParaguay/side1/uploadPresigned${hash ? `?hash=${hash}` : ''}`, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    res.status(resp.status).send(resp.data)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+});
+
+app.post('/profile/caretaker/dependent/s3/validateDocument/idCardParaguay/side1/validate', query('hash').isString().notEmpty(), keycloak.protect('realm:patient'), async (req, res) => {
+  const payload = req.body
+  const { hash } = req.query as any
+  try {
+    const resp = await axios.post(`/profile/caretaker/dependent/s3/validateDocument/idCardParaguay/side1/validate?hash=${hash}`, payload, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    res.status(resp.status).send(resp.data)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+});
+
+app.get('/profile/caretaker/dependent/s3/validateDocument/idCardParaguay/side2/uploadPresigned', query('hash').isString().notEmpty(), keycloak.protect('realm:patient'), async (req, res) => {
+  const { hash } = req.query as any
+  try {
+    const resp = await axios.get(`/profile/caretaker/dependent/s3/validateDocument/idCardParaguay/side2/uploadPresigned?hash=${hash}`, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    res.status(resp.status).send(resp.data)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+});
+
+app.post('/profile/caretaker/dependent/s3/validateDocument/idCardParaguay/side2/validate', query('hash').isString().notEmpty(), keycloak.protect('realm:patient'), async (req, res) => {
+  const payload = req.body
+  const { hash } = req.query as any
+  try {
+    const resp = await axios.post(`/profile/caretaker/dependent/s3/validateDocument/idCardParaguay/side2/validate?hash=${hash}`, payload, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    res.status(resp.status).send(resp.data)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+});
+
+app.get('/profile/caretaker/dependent/s4/validateSelfie/uploadPresigned', query('hash').isString().notEmpty(), keycloak.protect('realm:patient'), async (req, res) => {
+  const { hash } = req.query as any
+  try {
+    const resp = await axios.get(`/profile/caretaker/dependent/s4/validateSelfie/uploadPresigned?hash=${hash}`, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    res.status(resp.status).send(resp.data)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+});
+
+app.post('/profile/caretaker/dependent/s4/validateSelfie/validate', query('hash').isString().notEmpty(), keycloak.protect('realm:patient'), async (req, res) => {
+  const payload = req.body
+  const { hash } = req.query as any
+  try {
+    const resp = await axios.post(`/profile/caretaker/dependent/s4/validateSelfie/validate?hash=${hash}`, payload, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    res.status(resp.status).send(resp.data)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+});
 
 //
 // MEDICATIONS:
