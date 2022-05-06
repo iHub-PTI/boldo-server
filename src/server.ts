@@ -348,7 +348,6 @@ app.post('/profile/patient', keycloak.protect('realm:patient'), async (req, res)
 // GET /profile/caretaker/dependents
 // POST /profile/caretaker/dependent
 // GET /profile/caretaker/dependent/:id
-// POST /profile/caretaker/appointments
 // GET /profile/caretaker/dependent/confirm/:id
 // GET /profile/caretaker/relationships
 // GET /profile/caretaker/dependent/s3/validateDocument/idCardParaguay/side1/uploadPresigned
@@ -386,16 +385,6 @@ app.get('/profile/caretaker/dependent/:id', keycloak.protect('realm:patient'), a
       headers: { Authorization: `Bearer ${getAccessToken(req)}` },
     })
     res.status(response.status).send(response.data)
-  } catch (err) {
-    handleError(req, res, err)
-  }
-})
-
-app.post('/profile/caretaker/appointments', keycloak.protect('realm:patient'), async (req, res) => {
-  const payload = req.body
-  try {
-    const resp = await axios.post('/profile/caretaker/appointments', payload, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
-    res.status(resp.status).send(resp.data)
   } catch (err) {
     handleError(req, res, err)
   }
@@ -863,6 +852,40 @@ async (req, res) => {
   cancelAppointment(req,res,'patient')
 })
 
+
+//
+// APPOINTMENTS for DEPENDENTS:
+// Protected Routes for managing profile information
+// GET /profile/caretaker/dependent/:id/appointments - Read appointments of Patient
+// POST /profile/caretaker/dependent/:id/appointments - Create appointment for Patient
+
+
+app.post('/profile/caretaker/dependent/:id/appointments', keycloak.protect('realm:patient'), async (req, res) => {
+  const payload = req.body
+  const { id } = req.params
+  try {
+    const resp =  await axios.post(`/profile/caretaker/dependent/${id}/appointments`, payload, {
+      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+    })
+    res.status(resp.status).send(resp.data)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
+
+app.get('/profile/caretaker/dependent/:id/appointments', keycloak.protect('realm:patient'), async (req, res) => {
+  if (!validate(req, res)) return
+  const { id } = req.params
+
+  try {
+    const response = await axios.get(`/profile/caretaker/dependent/${id}/appointments`, {
+      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+    })
+    res.status(response.status).send(response.data)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
 //
 // Doctor
 // Public Routes for searching Doctors
