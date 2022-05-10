@@ -859,19 +859,51 @@ async (req, res) => {
 // GET /profile/caretaker/dependent/:id/appointments - Read appointments of Patient
 // POST /profile/caretaker/dependent/:id/appointments - Create appointment for Patient
 
+app.post(
+  '/profile/caretaker/dependent/:id/appointments',
+  keycloak.protect('realm:patient'),
+  body('doctorId').isString(),
+  body('start').isISO8601(),
+  body('appointmentType').isString(), 
+  async (req, res) => {
+    if (!validate(req, res)) return
+    const { id } = req.params
+    const { start, doctorId,appointmentType } = req.body
+    if (!["V","A"].includes(appointmentType)) res.status(400).send({ message: "Appointmente type must be Virtual (V) or Ambulatory (A)" })
+    const startDate = new Date(start)
+    const endDate = new Date(start)
+    endDate.setMilliseconds(endDate.getMilliseconds() + APPOINTMENT_LENGTH)
 
-app.post('/profile/caretaker/dependent/:id/appointments', keycloak.protect('realm:patient'), async (req, res) => {
-  const payload = req.body
-  const { id } = req.params
-  try {
-    const resp =  await axios.post(`/profile/caretaker/dependent/${id}/appointments`, payload, {
-      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
-    })
-    res.status(resp.status).send(resp.data)
-  } catch (err) {
-    handleError(req, res, err)
+    const now = new Date()
+    now.setMilliseconds(now.getMilliseconds() + APPOINTMENT_LENGTH)
+    if (startDate < now) return res.status(400).send({ message: "'start' has to be at least 30 minutes in the future" })
+
+    try {
+      const availabilities = await calculateAvailability(doctorId, startDate, endDate)
+      const available = availabilities.map(av => Date.parse(av["availability"])).includes(Date.parse(start))
+      if (!available) return res.status(400).send({ message: 'timeslot is not available for booking' })
+      const isAppType = availabilities.filter(av => Date.parse(av["availability"]) == Date.parse(start) && av["appointmentType"].includes(appointmentType)).length > 0
+      if (!isAppType) return res.status(400).send({ message: 'Wrong Appointment Type' })
+
+      const appointment = await CoreAppointment.create({appointmentType:appointmentType, date: startDate, status: 'upcoming', id: '_' })
+
+      const resp = await axios.post(
+        `/profile/caretaker/dependent/${id}/appointments`,
+        { doctorId, start, end: endDate.toISOString(),appointmentType },
+        {
+          headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+        }
+      )
+      const x = await CoreAppointment.findByIdAndUpdate(appointment._id, { $set: { id: resp.data.id } })
+
+      // FIXME: double check for double booking
+      res.send(resp.data)
+    } catch (err) {
+      handleError(req, res, err)
+    }
   }
-})
+)
+
 
 app.get('/profile/caretaker/dependent/:id/appointments', keycloak.protect('realm:patient'), async (req, res) => {
   const { id } = req.params
