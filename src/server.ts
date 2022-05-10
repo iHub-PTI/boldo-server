@@ -874,14 +874,31 @@ app.post('/profile/caretaker/dependent/:id/appointments', keycloak.protect('real
 })
 
 app.get('/profile/caretaker/dependent/:id/appointments', keycloak.protect('realm:patient'), async (req, res) => {
-  if (!validate(req, res)) return
   const { id } = req.params
-
   try {
-    const response = await axios.get(`/profile/caretaker/dependent/${id}/appointments`, {
-      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+    const { data } = await axios.get<iHub.Appointment[]>(
+      `/profile/caretaker/dependent/${id}/appointments?start=${req.query.start}&include=doctor`,
+      {
+        headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+      }
+    )
+
+    const ids = data.map(app => app.id)
+    const coreAppointments = await CoreAppointment.find({ id: { $in: ids } })
+
+    const FHIRAppointments = coreAppointments.map(appointment => {
+      const FHIRAppointment = data.find(app => app.id === appointment.id)
+      if (!FHIRAppointment) throw new Error(`FHIR Appointment must exist but not found for ID: ${appointment.id}!`)
+
+      const minutes = differenceInMinutes(parseISO(FHIRAppointment.start as any), Date.now())
+      if (minutes < 15 && appointment.status === 'upcoming') {
+        return { ...FHIRAppointment, type: 'Appointment', status: 'open' }
+      } else {
+        return { ...FHIRAppointment, type: 'Appointment', status: appointment.status }
+      }
     })
-    res.status(response.status).send(response.data)
+
+    res.send({ appointments: FHIRAppointments, token: '' })
   } catch (err) {
     handleError(req, res, err)
   }
