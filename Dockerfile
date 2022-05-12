@@ -4,7 +4,7 @@ RUN mkdir -p /usr/src/app
 WORKDIR /usr/src/app
 COPY . /usr/src/app/
 COPY ./nmpcron.cron /tmp/
-RUN apt-get update && apt-get install -y cron
+RUN apt-get update && apt-get install -y cron vi
 RUN touch /tmp/cron.log
 RUN crontab -u node /tmp/nmpcron.cron
 RUN npm i
