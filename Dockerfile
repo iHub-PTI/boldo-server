@@ -8,12 +8,8 @@ ADD ./nmpcron.cron /etc/cron.d/npmcron
 RUN chmod 0644 /etc/cron.d/npmcron
 RUN crontab /etc/cron.d/npmcron
 RUN touch /var/log/cron.log
-RUN apt-get install -y vim
-RUN touch /tmp/cron.log
-RUN crontab -u node /tmp/nmpcron.cron
 RUN npm i
 RUN npm run build
-RUN apt-get update
 ENV TZ=America/Asuncion
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 USER node
