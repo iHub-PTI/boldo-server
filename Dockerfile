@@ -3,8 +3,11 @@ ENV PORT=8008
 RUN mkdir -p /usr/src/app
 WORKDIR /usr/src/app
 COPY . /usr/src/app/
-COPY ./nmpcron.cron /tmp/
 RUN apt-get update && apt-get install -y cron
+ADD ./nmpcron.cron /etc/cron.d/npmcron
+RUN chmod 0644 /etc/cron.d/npmcron
+RUN crontab /etc/cron.d/npmcron
+RUN touch /var/log/cron.log
 RUN apt-get install -y vim
 RUN touch /tmp/cron.log
 RUN crontab -u node /tmp/nmpcron.cron
