@@ -9,6 +9,7 @@ COPY ./config/supervisord.conf /etc/supervisord.conf
 ADD ./nmpcron.cron /etc/cron.d/npmcron
 RUN chmod 0644 /etc/cron.d/npmcron
 RUN crontab /etc/cron.d/npmcron
+RUN touch /usr/src/app/supervisord.log
 RUN touch /var/log/cron.log
 RUN npm i
 RUN npm run build
