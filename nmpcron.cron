@@ -1,1 +1,1 @@
-*/5 * * * * npm run archiveAppointments >> /tmp/txt.log
+*/5 * * * * /usr/local/bin/npm run archiveAppointments >> /tmp/txt.log
