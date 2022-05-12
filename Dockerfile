@@ -3,8 +3,8 @@ ENV PORT=8008
 RUN mkdir -p /usr/src/app
 WORKDIR /usr/src/app
 COPY . /usr/src/app/
-RUN apt-get install -y supervisor
 RUN apt-get update && apt-get install -y cron
+RUN apt-get install -y supervisor
 COPY ./config/supervisord.conf /etc/supervisord.conf
 ADD ./nmpcron.cron /etc/cron.d/npmcron
 RUN chmod 0644 /etc/cron.d/npmcron
