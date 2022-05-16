@@ -15,6 +15,15 @@ export type Interval = [number, number]
 export const APPOINTMENT_LENGTH = 30 /**minutes in milliseconds*/ * 1000 * 60
 
 export const calculateAvailability = async (doctorId: string, start: Date, end: Date) => {
+
+  //we must check all the blocked intervals from the start and end day during the appointments queries
+  let newStart = new Date(start);
+  //we use the start hour of the start day
+  newStart.setHours(0);
+  let newEnd = new Date(end); 
+  //we use the end hour of the end day
+  newEnd.setHours(24);
+
   try {
     // Get the doctor._id and opening hours
     const doctor = await Doctor.findOne({ id: doctorId })
@@ -22,16 +31,16 @@ export const calculateAvailability = async (doctorId: string, start: Date, end: 
 
     // Get all the FHIR appointments
 
-    // FIXME: There is an issue with FHIR not returning events that start before the startDate but end after the start date.
-    // Therefore use 1h before appointment.
-    const startFHIR = new Date(start)
-    startFHIR.setHours(startFHIR.getHours() - 1)
+    // (Deprecated) FIXME: There is an issue with FHIR not returning events that start before the startDate but end after the start date.
+    // (Deprecated) Therefore use 1h before appointment.
+    // FIX MAY NOT BE REQUIRED ANYMORE, SINCE NOW ALL APPOINTMENTS STARTING FROM 00:00 HS ARE CONSIDERED
+    // MOREOVER THERE ARE NOT APPOINTMENTS THAT START IN ONE DAY AND END IN THE NEXT ONE
     const resp = await axios.get<iHub.Appointment[]>(
-      `/appointments?doctors=${doctorId}&start=${startFHIR.toISOString()}&end=${end.toISOString()}&status=Booked`
+      `/appointments?doctors=${doctorId}&start=${newStart.toISOString()}&end=${newEnd.toISOString()}&status=Booked`
     )
 
     // Get the doctors other appointments
-    const appointments = await Appointment.find({ doctorId: doctor._id, end: { $gt: start }, start: { $lt: end } })
+    const appointments = await Appointment.find({ doctorId: doctor._id, end: { $gt: newStart }, start: { $lt: newEnd } })
 
     // Transforming the data
     const iHubAppointments = resp.data.map(appointment => [Date.parse(appointment.start), Date.parse(appointment.end)])
@@ -43,6 +52,7 @@ export const calculateAvailability = async (doctorId: string, start: Date, end: 
 
     // Calcualte availability intervals
     const openIntervals = await calculateOpenIntervals({base:openHourDates, substract:blockedIntervals}) as [number,number,string][]
+    
     // Slize availabilities into junks of appointment lengths
     const availabilities = openIntervals
       .flatMap(interval => {
