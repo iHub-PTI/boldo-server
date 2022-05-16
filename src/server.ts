@@ -603,15 +603,13 @@ app.post(
   body('name').isString(),
   body(['start', 'end']).isISO8601(),
   body('description').isString().optional(),
-  body('appointmentType').isString(),
   async (req, res) => {
     if (!validate(req, res)) return
     if (!req.userId) return res.sendStatus(500)
 
     const { type, name, start, end, description,appointmentType } = req.body
-
     try {
-      const appointment = await Appointment.create({appointmentType, type, name, start, end, description, doctorId: req.userId })
+      const appointment = await Appointment.create({appointmentType:"E", type, name, start, end, description, doctorId: req.userId})
       res.send(appointment)
     } catch (err) {
       handleError(req, res, err)
