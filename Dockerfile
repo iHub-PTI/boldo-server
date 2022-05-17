@@ -3,12 +3,7 @@ ENV PORT=8008
 RUN mkdir -p /usr/src/app
 WORKDIR /usr/src/app
 COPY . /usr/src/app/
-RUN apt-get update && apt-get install -y cron
-ADD ./nmpcron.cron /etc/cron.d/npmcron
-RUN chmod 0644 /etc/cron.d/npmcron
-RUN crontab /etc/cron.d/npmcron
-RUN touch /usr/src/app/supervisord.log
-RUN touch /var/log/cron.log
+ADD ./script.sh /tmp
 RUN npm i
 RUN npm run build
 ENV TZ=America/Asuncion
