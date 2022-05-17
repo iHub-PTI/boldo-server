@@ -348,6 +348,7 @@ app.post('/profile/patient', keycloak.protect('realm:patient'), async (req, res)
 // GET /profile/caretaker/dependents
 // POST /profile/caretaker/dependent
 // PUT /profile/caretaker/dependent/:id
+// PUT /profile/caretaker/inactivate/dependent/:id
 // GET /profile/caretaker/dependent/:id
 // GET /profile/caretaker/dependent/confirm/:id
 // GET /profile/caretaker/relationships
@@ -382,6 +383,17 @@ app.put('/profile/caretaker/dependent/:id', keycloak.protect('realm:patient'), a
   const { id } = req.params
   try {
     const resp = await axios.put(`/profile/caretaker/dependent/${id}`, payload, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    res.status(resp.status).send(resp.data)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
+
+app.put('/profile/caretaker/inactivate/dependent/:id', keycloak.protect('realm:patient'), async (req, res) => {
+  const payload = req.body
+  const { id } = req.params
+  try {
+    const resp = await axios.put(`/profile/caretaker/inactivate/dependent/${id}`, payload, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
     res.status(resp.status).send(resp.data)
   } catch (err) {
     handleError(req, res, err)
@@ -887,7 +899,7 @@ app.get('/profile/caretaker/dependent/:id/prescriptions', keycloak.protect('real
 // APPOINTMENTS for DEPENDENTS:
 // Protected Routes for managing profile information
 // GET /profile/caretaker/dependent/:id/appointments - Read appointments of dependent
-// GET /profile/caretaker/dependent/:idDependent/appointments/:id/ - Read appointment by id of dependent
+// GET /profile/caretaker/dependent/:idDependenttments/:id/ - Read appointment by id of dependent
 // POST /profile/caretaker/dependent/:id/appointments - Create appointment for dependent
 // POST /profile/caretaker/appointments/cancel/:id - Cancel appointment by caretaker 
 
