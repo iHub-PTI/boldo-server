@@ -4,6 +4,7 @@ RUN mkdir -p /usr/src/app
 WORKDIR /usr/src/app
 COPY . /usr/src/app/
 ADD ./script.sh /tmp
+RUN chmod +x /tmp/script.sh
 RUN npm i
 RUN npm run build
 ENV TZ=America/Asuncion
