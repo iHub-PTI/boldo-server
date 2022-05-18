@@ -1,1 +1,1 @@
-*/5 * * * * npm run archiveAppointments
+*/5 * * * * node /usr/local/bin/npm run archiveAppointments >> /var/log/cron.log 2>&1
