@@ -347,6 +347,8 @@ app.post('/profile/patient', keycloak.protect('realm:patient'), async (req, res)
 // CARETAKER PROFILE:
 // GET /profile/caretaker/dependents
 // POST /profile/caretaker/dependent
+// PUT /profile/caretaker/dependent/:id
+// PUT /profile/caretaker/inactivate/dependent/:id
 // GET /profile/caretaker/dependent/:id
 // GET /profile/caretaker/dependent/confirm/:id
 // GET /profile/caretaker/relationships
@@ -356,7 +358,7 @@ app.post('/profile/patient', keycloak.protect('realm:patient'), async (req, res)
 // POST /profile/caretaker/dependent/s3/validateDocument/idCardParaguay/side2/validate?hash=${hash}
 // GET /profile/caretaker/dependent/s4/validateSelfie/uploadPresigned?hash=${hash}
 // POST /profile/caretaker/dependent/s4/validateSelfie/validate?hash=${hash}
-//
+
 app.get('/profile/caretaker/dependents', keycloak.protect('realm:patient'), async (req, res) => {
   try {
     const resp = await axios.get('/profile/caretaker/dependents', { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
@@ -370,6 +372,28 @@ app.post('/profile/caretaker/dependent', keycloak.protect('realm:patient'), asyn
   const payload = req.body
   try {
     const resp = await axios.post('/profile/caretaker/dependent', payload, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    res.status(resp.status).send(resp.data)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
+
+app.put('/profile/caretaker/dependent/:id', keycloak.protect('realm:patient'), async (req, res) => {
+  const payload = req.body
+  const { id } = req.params
+  try {
+    const resp = await axios.put(`/profile/caretaker/dependent/${id}`, payload, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    res.status(resp.status).send(resp.data)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
+
+app.put('/profile/caretaker/inactivate/dependent/:id', keycloak.protect('realm:patient'), async (req, res) => {
+  const payload = req.body
+  const { id } = req.params
+  try {
+    const resp = await axios.put(`/profile/caretaker/inactivate/dependent/${id}`, payload, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
     res.status(resp.status).send(resp.data)
   } catch (err) {
     handleError(req, res, err)
@@ -850,13 +874,93 @@ async (req, res) => {
   cancelAppointment(req,res,'patient')
 })
 
+//
+// PRESCRIPTIONS for DEPENDENTS:
+// Protected Routes for managing profile prescriptions
+// GET /profile/caretaker/dependent/:id/prescriptions - Read prescriptions of dependent 
+//
+
+app.get('/profile/caretaker/dependent/:id/prescriptions', keycloak.protect('realm:patient'), async (req, res) => {
+  const { id } = req.params
+  try {
+    const { data } = await axios.get<iHub.Appointment[]>(`/profile/caretaker/dependent/${id}/prescriptions`, {
+      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+    })
+
+    res.send({ prescriptions: data })
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
 
 //
 // APPOINTMENTS for DEPENDENTS:
 // Protected Routes for managing profile information
-// GET /profile/caretaker/dependent/:id/appointments - Read appointments of Patient
-// POST /profile/caretaker/dependent/:id/appointments - Create appointment for Patient
+// GET /profile/caretaker/dependent/:id/appointments - Read appointments of dependent
+// GET /profile/caretaker/dependent/:idDependenttments/:id/ - Read appointment by id of dependent
+// POST /profile/caretaker/dependent/:id/appointments - Create appointment for dependent
+// POST /profile/caretaker/appointments/cancel/:id - Cancel appointment by caretaker 
 
+app.get('/profile/caretaker/dependent/:id/appointments', keycloak.protect('realm:patient'), async (req, res) => {
+  const { id } = req.params
+  try {
+    const { data } = await axios.get<iHub.Appointment[]>(
+      `/profile/caretaker/dependent/${id}/appointments?start=${req.query.start}&include=doctor`,
+      {
+        headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+      }
+    )
+
+    const ids = data.map(app => app.id)
+    const coreAppointments = await CoreAppointment.find({ id: { $in: ids } })
+
+    const FHIRAppointments = coreAppointments.map(appointment => {
+      const FHIRAppointment = data.find(app => app.id === appointment.id)
+      if (!FHIRAppointment) throw new Error(`FHIR Appointment must exist but not found for ID: ${appointment.id}!`)
+
+      const minutes = differenceInMinutes(parseISO(FHIRAppointment.start as any), Date.now())
+      if (minutes < 15 && appointment.status === 'upcoming') {
+        return { ...FHIRAppointment, type: 'Appointment', status: 'open' }
+      } else {
+        return { ...FHIRAppointment, type: 'Appointment', status: appointment.status }
+      }
+    })
+
+    res.send({ appointments: FHIRAppointments, token: '' })
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
+
+app.get('/profile/caretaker/dependent/:idDependent/appointments/:id', keycloak.protect('realm:patient'), async (req, res) => {
+  const { idDependent,id } = req.params
+  try {
+    const { data: FHIRAppointment } = await axios.get<iHub.Appointment>(
+      `/profile/caretaker/dependent/${idDependent}/appointments/${id}?include=doctor`,
+      {
+        headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+      }
+    )
+
+    const coreAppointment = await CoreAppointment.findOne({ id })
+    if (!coreAppointment) throw new Error(`Core Appointment must exist but not found for ID: ${id}!`)
+
+    let appointment
+    const minutes = differenceInMinutes(parseISO(FHIRAppointment.start as any), Date.now())
+    if (minutes < 15 && coreAppointment.status === 'upcoming') {
+      appointment = { ...FHIRAppointment, type: 'Appointment', status: 'open' }
+    } else {
+      appointment = { ...FHIRAppointment, type: 'Appointment', status: coreAppointment.status }
+    }
+
+    let token = ''
+    if (appointment.status === 'open') token = createToken([appointment.id], 'patient')
+
+    res.send({ ...appointment, token })
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
 app.post(
   '/profile/caretaker/dependent/:id/appointments',
   keycloak.protect('realm:patient'),
@@ -903,35 +1007,11 @@ app.post(
 )
 
 
-app.get('/profile/caretaker/dependent/:id/appointments', keycloak.protect('realm:patient'), async (req, res) => {
-  const { id } = req.params
-  try {
-    const { data } = await axios.get<iHub.Appointment[]>(
-      `/profile/caretaker/dependent/${id}/appointments?start=${req.query.start}&include=doctor`,
-      {
-        headers: { Authorization: `Bearer ${getAccessToken(req)}` },
-      }
-    )
 
-    const ids = data.map(app => app.id)
-    const coreAppointments = await CoreAppointment.find({ id: { $in: ids } })
-
-    const FHIRAppointments = coreAppointments.map(appointment => {
-      const FHIRAppointment = data.find(app => app.id === appointment.id)
-      if (!FHIRAppointment) throw new Error(`FHIR Appointment must exist but not found for ID: ${appointment.id}!`)
-
-      const minutes = differenceInMinutes(parseISO(FHIRAppointment.start as any), Date.now())
-      if (minutes < 15 && appointment.status === 'upcoming') {
-        return { ...FHIRAppointment, type: 'Appointment', status: 'open' }
-      } else {
-        return { ...FHIRAppointment, type: 'Appointment', status: appointment.status }
-      }
-    })
-
-    res.send({ appointments: FHIRAppointments, token: '' })
-  } catch (err) {
-    handleError(req, res, err)
-  }
+app.post('/profile/caretaker/appointments/cancel/:id',
+keycloak.protect('realm:patient'),
+async (req, res) => {
+  cancelAppointment(req,res,'caretaker')
 })
 //
 // Doctor
