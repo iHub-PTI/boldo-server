@@ -344,6 +344,30 @@ app.post('/profile/patient', keycloak.protect('realm:patient'), async (req, res)
 })
 
 //
+// PATIENT PROFILE (AS DEPENDENT)
+// GET /profile/patient/caretakers
+// PUT /profile/patient/inactivate/caretaker/:id
+//
+app.get('/profile/patient/caretakers', keycloak.protect('realm:patient'), async (req, res) => {
+  try {
+    const resp = await axios.get('/profile/patient/caretakers', { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    res.status(resp.status).send(resp.data)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
+
+app.put('/profile/patient/inactivate/caretaker/:id', keycloak.protect('realm:patient'), async (req, res) => {
+  const payload = req.body
+  const { id } = req.params
+  try {
+    const resp = await axios.put(`/profile/patient/inactivate/caretaker/${id}`, payload, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    res.status(resp.status).send(resp.data)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
+//
 // CARETAKER PROFILE:
 // GET /profile/caretaker/dependents
 // POST /profile/caretaker/dependent
