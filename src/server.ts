@@ -1286,6 +1286,62 @@ app.get(
   }
 )
 
+// DIAGNOSTIC REPORTS for PATIENTS:
+// GET /profile/patient/diagnosticReports - Read diagnostic reports of Patient
+// POST /profile/patient/diagnosticReport - Create diagnostic report from Patient profile
+app.get('/profile/patient/diagnosticReports', keycloak.protect('realm:patient'), async (req, res) => {
+  try {
+    const resp = await axios.get('/profile/patient/diagnosticReports', { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    res.status(resp.status).send(resp.data)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
+
+app.post('/profile/patient/diagnosticReport', keycloak.protect('realm:patient'), async (req, res) => {
+  const payload = req.body
+  const startDate = new Date(payload.effectiveDate)
+  if (startDate > new Date()) return res.status(400).send({ message: "invalid effectiveDate" })
+  try {
+    const resp = await axios.post('/profile/patient/diagnosticReport', payload, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    res.status(resp.status).send(resp.data)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
+
+// DIAGNOSTIC REPORTS for DEPENDENTS:
+// GET /profile/caretaker/dependent/:id/diagnosticReports - Read diagnostic reports of Patient
+// POST /profile/caretaker/dependent/:id/diagnosticReport - Create diagnostic report from Patient profile
+app.get('/profile/caretaker/dependent/:id/diagnosticReports', keycloak.protect('realm:patient'), async (req, res) => {
+  if (!validate(req, res)) return
+  const { id } = req.params
+
+  try {
+    const response = await axios.get(`/profile/caretaker/dependent/${id}/diagnosticReports`, {
+      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+    })
+    res.status(response.status).send(response.data)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
+
+app.post('/profile/caretaker/dependent/:id/diagnosticReport', keycloak.protect('realm:patient'), async (req, res) => {
+  const payload = req.body
+  const { id } = req.params
+  const startDate = new Date(payload.effectiveDate)
+  if (startDate > new Date()) return res.status(400).send({ message: "invalid effectiveDate" })
+  
+  try {
+    const resp = await axios.post(`/profile/caretaker/dependent/${id}/diagnosticReport`, payload, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    res.status(resp.status).send(resp.data)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
+
+
 //
 // Utils:
 // GET /presigned - List doctor specializations
