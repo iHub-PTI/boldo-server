@@ -1288,6 +1288,7 @@ app.get(
 
 // DIAGNOSTIC REPORTS for PATIENTS:
 // GET /profile/patient/diagnosticReports - Read diagnostic reports of Patient
+// GET /profile/patient/diagnosticReports/:id - Read diagnostic report of Patient by id
 // POST /profile/patient/diagnosticReport - Create diagnostic report from Patient profile
 app.get('/profile/patient/diagnosticReports', keycloak.protect('realm:patient'), async (req, res) => {
   try {
@@ -1297,6 +1298,20 @@ app.get('/profile/patient/diagnosticReports', keycloak.protect('realm:patient'),
     handleError(req, res, err)
   }
 })
+
+app.get('/profile/patient/diagnosticReport/:id', keycloak.protect('realm:patient'), async (req, res) => {
+  if (!validate(req, res)) return
+  const { id } = req.params
+
+  try {
+    const response = await axios.get(`/profile/patient/diagnosticReport/${id}`, {
+      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+    })
+    res.status(response.status).send(response.data)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+}) 
 
 app.post('/profile/patient/diagnosticReport', keycloak.protect('realm:patient'), async (req, res) => {
   const payload = req.body
@@ -1312,6 +1327,7 @@ app.post('/profile/patient/diagnosticReport', keycloak.protect('realm:patient'),
 
 // DIAGNOSTIC REPORTS for DEPENDENTS:
 // GET /profile/caretaker/dependent/:id/diagnosticReports - Read diagnostic reports of Patient
+// GET /profile/caretaker/dependent/:id/diagnosticReports/:id - Read diagnostic report of Patient by id
 // POST /profile/caretaker/dependent/:id/diagnosticReport - Create diagnostic report from Patient profile
 app.get('/profile/caretaker/dependent/:id/diagnosticReports', keycloak.protect('realm:patient'), async (req, res) => {
   if (!validate(req, res)) return
@@ -1319,6 +1335,20 @@ app.get('/profile/caretaker/dependent/:id/diagnosticReports', keycloak.protect('
 
   try {
     const response = await axios.get(`/profile/caretaker/dependent/${id}/diagnosticReports`, {
+      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+    })
+    res.status(response.status).send(response.data)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
+
+app.get('/profile/caretaker/dependent/:idDependent/diagnosticReport/:id', keycloak.protect('realm:patient'), async (req, res) => {
+  if (!validate(req, res)) return
+  const { idDependent, id } = req.params
+
+  try {
+    const response = await axios.get(`/profile/caretaker/dependent/${idDependent}/diagnosticReport/${id}`, {
       headers: { Authorization: `Bearer ${getAccessToken(req)}` },
     })
     res.status(response.status).send(response.data)
