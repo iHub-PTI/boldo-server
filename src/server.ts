@@ -319,6 +319,26 @@ app.delete(
 )
 
 //
+// MANAGE Patient diagnostic reports:
+// Routes for managing patient diagnostic reports
+// GET /profile/doctor/diagnosticReports - List Patient's diagnostic reports 
+//
+app.get('/profile/doctor/diagnosticReports', keycloak.protect('realm:doctor'), async (req, res) => {
+  if (!validate(req, res)) return
+  try {
+    console.log(`/profile/doctor/diagnosticReports?patient_id=${req.query.patient_id}${req.query.page ? `&page=${req.query.page}` : ''}${req.query.count ? `&count=${req.query.count}` : ''}${req.query.category ? `&category=${req.query.category}` : ''}${req.query.dateOrder ? `&dateOrder=${req.query.dateOrder}` : ''}`)
+    const resp = await axios.get(`/profile/doctor/diagnosticReports?patient_id=${req.query.patient_id}${req.query.page ? `&page=${req.query.page}` : ''}${req.query.count ? `&count=${req.query.count}` : ''}${req.query.category ? `&category=${req.query.category}` : ''}${req.query.dateOrder ? `&dateOrder=${req.query.dateOrder}` : ''}`, 
+    { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    res.status(resp.status).send(resp.data)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
+
+
+
+
+//
 // PATIENT PROFILE:
 // GET /profile/patient - Read patient details
 // POST /profile/patient - Update patient details
