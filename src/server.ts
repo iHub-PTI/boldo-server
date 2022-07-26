@@ -319,6 +319,37 @@ app.delete(
 )
 
 //
+// MANAGE Patient diagnostic reports:
+// Routes for managing patient diagnostic reports
+// GET /profile/doctor/diagnosticReports - List Patient's diagnostic reports 
+// GET /profile/doctor/diagnosticReport/:id - get a diagnostic report
+// 
+app.get('/profile/doctor/diagnosticReports', keycloak.protect('realm:doctor'), async (req, res) => {
+  if (!validate(req, res)) return
+  try {
+    console.log(`/profile/doctor/diagnosticReports?patient_id=${req.query.patient_id}${req.query.page ? `&page=${req.query.page}` : ''}${req.query.count ? `&count=${req.query.count}` : ''}${req.query.category ? `&category=${req.query.category}` : ''}${req.query.dateOrder ? `&dateOrder=${req.query.dateOrder}` : ''}`)
+    const resp = await axios.get(`/profile/doctor/diagnosticReports?patient_id=${req.query.patient_id}${req.query.page ? `&page=${req.query.page}` : ''}${req.query.count ? `&count=${req.query.count}` : ''}${req.query.category ? `&category=${req.query.category}` : ''}${req.query.dateOrder ? `&dateOrder=${req.query.dateOrder}` : ''}`, 
+    { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    res.status(resp.status).send(resp.data)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
+
+app.get('/profile/doctor/diagnosticReport/:id', keycloak.protect('realm:doctor'), async (req, res) => {
+  const { id } = req.params
+  try {
+    const resp = await axios.get(`/profile/doctor/diagnosticReport/${id}`, 
+    { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    res.status(resp.status).send(resp.data)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
+
+
+
+//
 // PATIENT PROFILE:
 // GET /profile/patient - Read patient details
 // POST /profile/patient - Update patient details
@@ -343,6 +374,30 @@ app.post('/profile/patient', keycloak.protect('realm:patient'), async (req, res)
   }
 })
 
+//
+// PATIENT PROFILE (AS DEPENDENT)
+// GET /profile/patient/caretakers
+// PUT /profile/patient/inactivate/caretaker/:id
+//
+app.get('/profile/patient/caretakers', keycloak.protect('realm:patient'), async (req, res) => {
+  try {
+    const resp = await axios.get('/profile/patient/caretakers', { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    res.status(resp.status).send(resp.data)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
+
+app.put('/profile/patient/inactivate/caretaker/:id', keycloak.protect('realm:patient'), async (req, res) => {
+  const payload = req.body
+  const { id } = req.params
+  try {
+    const resp = await axios.put(`/profile/patient/inactivate/caretaker/${id}`, payload, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    res.status(resp.status).send(resp.data)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
 //
 // CARETAKER PROFILE:
 // GET /profile/caretaker/dependents
@@ -1261,6 +1316,92 @@ app.get(
     }
   }
 )
+
+// DIAGNOSTIC REPORTS for PATIENTS:
+// GET /profile/patient/diagnosticReports - Read diagnostic reports of Patient
+// GET /profile/patient/diagnosticReports/:id - Read diagnostic report of Patient by id
+// POST /profile/patient/diagnosticReport - Create diagnostic report from Patient profile
+app.get('/profile/patient/diagnosticReports', keycloak.protect('realm:patient'), async (req, res) => {
+  try {
+    const resp = await axios.get('/profile/patient/diagnosticReports', { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    res.status(resp.status).send(resp.data)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
+
+app.get('/profile/patient/diagnosticReport/:id', keycloak.protect('realm:patient'), async (req, res) => {
+  if (!validate(req, res)) return
+  const { id } = req.params
+
+  try {
+    const response = await axios.get(`/profile/patient/diagnosticReport/${id}`, {
+      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+    })
+    res.status(response.status).send(response.data)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+}) 
+
+app.post('/profile/patient/diagnosticReport', keycloak.protect('realm:patient'), async (req, res) => {
+  const payload = req.body
+  const startDate = new Date(payload.effectiveDate)
+  if (startDate > new Date()) return res.status(400).send({ message: "invalid effectiveDate" })
+  try {
+    const resp = await axios.post('/profile/patient/diagnosticReport', payload, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    res.status(resp.status).send(resp.data)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
+
+// DIAGNOSTIC REPORTS for DEPENDENTS:
+// GET /profile/caretaker/dependent/:id/diagnosticReports - Read diagnostic reports of Patient
+// GET /profile/caretaker/dependent/:id/diagnosticReports/:id - Read diagnostic report of Patient by id
+// POST /profile/caretaker/dependent/:id/diagnosticReport - Create diagnostic report from Patient profile
+app.get('/profile/caretaker/dependent/:id/diagnosticReports', keycloak.protect('realm:patient'), async (req, res) => {
+  if (!validate(req, res)) return
+  const { id } = req.params
+
+  try {
+    const response = await axios.get(`/profile/caretaker/dependent/${id}/diagnosticReports`, {
+      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+    })
+    res.status(response.status).send(response.data)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
+
+app.get('/profile/caretaker/dependent/:idDependent/diagnosticReport/:id', keycloak.protect('realm:patient'), async (req, res) => {
+  if (!validate(req, res)) return
+  const { idDependent, id } = req.params
+
+  try {
+    const response = await axios.get(`/profile/caretaker/dependent/${idDependent}/diagnosticReport/${id}`, {
+      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+    })
+    res.status(response.status).send(response.data)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
+
+app.post('/profile/caretaker/dependent/:id/diagnosticReport', keycloak.protect('realm:patient'), async (req, res) => {
+  const payload = req.body
+  const { id } = req.params
+  const startDate = new Date(payload.effectiveDate)
+  if (startDate > new Date()) return res.status(400).send({ message: "invalid effectiveDate" })
+  
+  try {
+    const resp = await axios.post(`/profile/caretaker/dependent/${id}/diagnosticReport`, payload, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    res.status(resp.status).send(resp.data)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
+
 
 //
 // Utils:
