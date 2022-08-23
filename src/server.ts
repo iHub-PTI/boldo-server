@@ -577,6 +577,26 @@ app.get('/medications', query('content').isString().optional(), async (req: any,
 })
 
 //
+// Protected routes for managing medications
+// GET /profile/doctor//medications - Read medications
+//
+
+app.get('/profile/doctor/medications', query('content').isString().optional(), keycloak.protect('realm:doctor'), async (req: any, res) => {
+  if (!validate(req, res)) return
+
+  const { content } = req.query as any
+
+  try {
+    const resp = await axios.get(`/profile/doctor/medications${content ? `?content=${content}` : ''}`, {
+      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+    })
+    res.send({ items: resp.data.items })
+  } catch (err) {
+    handleError(req, res, err)
+  }
+});
+
+//
 // ENCOUNTER:
 // Protected routes for managing encounters
 // PUT /profile/doctor/appointments/:id/encounter - Update the encounter
