@@ -347,7 +347,23 @@ app.get('/profile/doctor/diagnosticReport/:id', keycloak.protect('realm:doctor')
   }
 })
 
-
+//
+// MANAGE Patient service request:
+// Routes for managing patient service request
+// POST /profile/doctor/serviceRequest - create a list of Patient's service requests 
+ 
+app.post('/profile/doctor/serviceRequest', keycloak.protect('realm:doctor'), async (req, res) => {
+  const payload = req.body
+  try {
+    const resp =  await axios.post('/profile/doctor/serviceRequest', payload, {
+      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+    })
+    res.send(resp.data)
+  } catch (err) {
+    res.send(err)
+    handleError(req, res, err)
+  }
+})
 
 //
 // PATIENT PROFILE:
@@ -557,24 +573,25 @@ app.post('/profile/caretaker/dependent/s4/validateSelfie/validate', query('hash'
 
 //
 // MEDICATIONS:
+//
 // Protected routes for managing medications
-// GET /medications - Read medications
+// GET /profile/doctor//medications - Read medications
 //
 
-app.get('/medications', query('content').isString().optional(), async (req: any, res) => {
+app.get('/profile/doctor/medications', query('content').isString().optional(), keycloak.protect('realm:doctor'), async (req: any, res) => {
   if (!validate(req, res)) return
 
   const { content } = req.query as any
 
   try {
-    const resp = await axios.get(`/medications${content ? `?content=${content}` : ''}`, {
+    const resp = await axios.get(`/profile/doctor/medications${content ? `?content=${content}` : ''}`, {
       headers: { Authorization: `Bearer ${getAccessToken(req)}` },
     })
     res.send({ items: resp.data.items })
   } catch (err) {
     handleError(req, res, err)
   }
-})
+});
 
 //
 // ENCOUNTER:
