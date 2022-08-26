@@ -347,7 +347,23 @@ app.get('/profile/doctor/diagnosticReport/:id', keycloak.protect('realm:doctor')
   }
 })
 
-
+//
+// MANAGE Patient service request:
+// Routes for managing patient service request
+// POST /profile/doctor/serviceRequest - create a list of Patient's service requests 
+ 
+app.post('/profile/doctor/serviceRequest', keycloak.protect('realm:doctor'), async (req, res) => {
+  const payload = req.body
+  try {
+    const resp =  await axios.post('/profile/doctor/serviceRequest', payload, {
+      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+    })
+    res.send(resp.data)
+  } catch (err) {
+    res.send(err)
+    handleError(req, res, err)
+  }
+})
 
 //
 // PATIENT PROFILE:
