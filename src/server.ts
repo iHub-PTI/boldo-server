@@ -557,25 +557,6 @@ app.post('/profile/caretaker/dependent/s4/validateSelfie/validate', query('hash'
 
 //
 // MEDICATIONS:
-// Protected routes for managing medications
-// GET /medications - Read medications
-//
-
-app.get('/medications', query('content').isString().optional(), async (req: any, res) => {
-  if (!validate(req, res)) return
-
-  const { content } = req.query as any
-
-  try {
-    const resp = await axios.get(`/medications${content ? `?content=${content}` : ''}`, {
-      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
-    })
-    res.send({ items: resp.data.items })
-  } catch (err) {
-    handleError(req, res, err)
-  }
-})
-
 //
 // Protected routes for managing medications
 // GET /profile/doctor//medications - Read medications
