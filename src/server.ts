@@ -353,7 +353,8 @@ app.get('/profile/doctor/diagnosticReport/:id', keycloak.protect('realm:doctor')
 // POST /profile/doctor/serviceRequest - create a list of Patient's service requests 
 // POST /profile/doctor/studyOrderTemplate - create a a study order template
 // GET /profile/doctor/studyOrderTemplate - obtaint a list of study order templates
- 
+// PUT /profile/doctor/studyOrderTemplate/:id - update a a study order template
+// PUT /profile/doctor/studyOrderTemplate/inactivate/:id - inactivate a study order template
  
 app.post('/profile/doctor/serviceRequest', keycloak.protect('realm:doctor'), async (req, res) => {
   const payload = req.body
@@ -390,6 +391,33 @@ app.get('/profile/doctor/studyOrderTemplate', keycloak.protect('realm:doctor'), 
     handleError(req, res, err)
   }
 })
+
+app.put('/profile/doctor/studyOrderTemplate/:id', keycloak.protect('realm:doctor'), async (req, res) => {
+  const { id } = req.params
+  const payload = req.body
+  try {
+    const resp = await axios.put(`/profile/doctor/studyOrderTemplate/${id}`, payload, {
+      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+    })
+    res.status(resp.status).send(resp.data)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
+
+app.put('/profile/doctor/studyOrderTemplate/inactivate/:id', keycloak.protect('realm:doctor'), async (req, res) => {
+  const { id } = req.params
+  const payload = req.body
+  try {
+    const resp = await axios.put(`/profile/doctor/studyOrderTemplate/inactivate/${id}`, payload, {
+      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+    })
+    res.status(resp.status).send(resp.data)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
+
 //
 // PATIENT PROFILE:
 // GET /profile/patient - Read patient details
