@@ -64,7 +64,7 @@ stages:
         containerRegistryType: 'Azure Container Registry'
     - task: Kubernetes@1
       displayName: Deploy to healthcore-prod
-      condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/master'))
+      condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
       inputs:
         connectionType: 'Kubernetes Service Connection'
         kubernetesServiceEndpoint: 'healthcore-prod'
