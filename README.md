@@ -67,7 +67,7 @@ The project is currently under heavy development but contributors are welcome. F
 
 ## Authors and License
 
-This project was created as part of the iHub COVID-19 project in collaboration between [Penguin Academy](https://penguin.academy) and [PTI (Parque Tecnológico Itaipu Paraguay)](http://pti.org.py).
+This project was created as part of the iHub COVID-19 project in collaboration between [Penguin Academy](https://penguin.academy) and [PTI (Parque Tecnológico Itaipu Paraguay)](http://pti.org.py)
 
 This project is licensed under
 [AGPL v3](LICENSE)
