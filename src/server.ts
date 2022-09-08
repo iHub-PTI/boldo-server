@@ -348,7 +348,7 @@ app.get('/profile/doctor/diagnosticReport/:id', keycloak.protect('realm:doctor')
 })
 
 //
-// MANAGE Patient service request:
+// MANAGE Patient service request from doctor profile:
 // Routes for managing patient service request
 // POST /profile/doctor/serviceRequest - create a list of Patient's service requests 
 // POST /profile/doctor/studyOrderTemplate - create a a study order template
@@ -417,6 +417,23 @@ app.put('/profile/doctor/studyOrderTemplate/inactivate/:id', keycloak.protect('r
     handleError(req, res, err)
   }
 })
+
+//
+// MANAGE Service request from patient profile:
+// Routes for managing patient service request
+// GET /profile/patient/serviceRequests - obtaint a list of study order templates group by encounter
+
+
+app.get('/profile/patient/serviceRequests', keycloak.protect('realm:patient'), async (req, res) => {
+  try {
+    const resp = await axios.get('/profile/patient/serviceRequests', { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    res.send(resp.data)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
+
+
 
 //
 // PATIENT PROFILE:
