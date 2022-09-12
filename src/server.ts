@@ -422,7 +422,7 @@ app.put('/profile/doctor/studyOrderTemplate/inactivate/:id', keycloak.protect('r
 // MANAGE Service request from patient profile:
 // Routes for managing patient service request
 // GET /profile/patient/serviceRequests - obtaint a list of study order templates group by encounter
-
+// GET /profile/patient/encounter/:id/serviceRequests - obtaint a list of study order templates for an encounter
 
 app.get('/profile/patient/serviceRequests', keycloak.protect('realm:patient'), async (req, res) => {
   try {
@@ -433,7 +433,15 @@ app.get('/profile/patient/serviceRequests', keycloak.protect('realm:patient'), a
   }
 })
 
-
+app.get('/profile/patient/encounter/:id/serviceRequests', keycloak.protect('realm:patient'), async (req, res) => {
+  const { id } = req.params
+  try {
+    const resp = await axios.get(`/profile/patient/encounter/${id}/serviceRequests`, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    res.send(resp.data)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
 
 //
 // PATIENT PROFILE:
