@@ -364,7 +364,6 @@ app.post('/profile/doctor/serviceRequest', keycloak.protect('realm:doctor'), asy
     })
     res.send(resp.data)
   } catch (err) {
-    res.send(err)
     handleError(req, res, err)
   }
 })
@@ -377,7 +376,6 @@ app.post('/profile/doctor/studyOrderTemplate', keycloak.protect('realm:doctor'),
     })
     res.send(resp.data)
   } catch (err) {
-    res.send(err)
     handleError(req, res, err)
   }
 })
