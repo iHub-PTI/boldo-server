@@ -425,6 +425,18 @@ app.get('/profile/doctor/serviceRequest/:id', keycloak.protect('realm:doctor'), 
     handleError(req, res, err)
   }
 })
+
+app.get('/profile/doctor/serviceRequests', keycloak.protect('realm:doctor'), async (req, res) => {
+  if (!validate(req, res)) return
+  try {
+    console.log(`/profile/doctor/serviceRequests?patient_id=${req.query.patient_id}${req.query.page ? `&page=${req.query.page}` : ''}${req.query.count ? `&count=${req.query.count}` : ''}${req.query.category ? `&category=${req.query.category}` : ''}${req.query.dateOrder ? `&dateOrder=${req.query.dateOrder}` : ''}`)
+    const resp = await axios.get(`/profile/doctor/serviceRequests?patient_id=${req.query.patient_id}${req.query.page ? `&page=${req.query.page}` : ''}${req.query.count ? `&count=${req.query.count}` : ''}${req.query.category ? `&category=${req.query.category}` : ''}${req.query.dateOrder ? `&dateOrder=${req.query.dateOrder}` : ''}`, 
+    { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    res.status(resp.status).send(resp.data)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
 //
 // MANAGE Service request from patient profile:
 // Routes for managing patient service request
