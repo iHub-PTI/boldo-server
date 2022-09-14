@@ -3,7 +3,7 @@ import 'dotenv/config'
 import mongoose from 'mongoose'
 import axios from 'axios'
 import express from 'express'
-import CoreAppointment from '../src/models/CoreAppointment'
+import CoreAppointment from '../models/CoreAppointment'
 
 // This script updates the status of CoreAppointments Documents in MongoDB 
 // It is executed periodically by a crontab 
@@ -49,7 +49,7 @@ export const archiveAppointments = async () => {
       { date: { $lte: hoursAgo }, status: {$nin :["cancelled","locked"]} },
       { status: 'locked' }
     )
-    console.log('🏛 ✅ DAILY ARCHIVE ORDERS TASK RESULTS: ', res)
+    console.log('SCRIPT LOG: 🏛 ✅ DAILY ARCHIVE ORDERS TASK RESULTS: ', res)
   } catch (err) {
     console.log(err)
   }
@@ -60,8 +60,8 @@ export const archiveAppointments = async () => {
   const response = await axios.put(`/profile/admin/encounter/status`,{}, {
     headers: { Authorization: `Bearer ${boldoToken}` },
   })
-  console.log("Encounter status update: ",response.status)
-  
+  console.log("SCRIPT LOG: Core-health-mapper 🔥 -> Encounter status update: ", response.status + " " + response.statusText)
+
 }
 
 if (require.main === module) {
