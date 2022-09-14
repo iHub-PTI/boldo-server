@@ -418,15 +418,6 @@ app.put('/profile/doctor/studyOrderTemplate/inactivate/:id', keycloak.protect('r
   }
 })
 
-app.get('/profile/doctor/serviceRequest/:id', keycloak.protect('realm:doctor'), async (req, res) => {
-  const { id } = req.params
-  try {
-    const resp = await axios.get(`/profile/doctor/serviceRequest/${id}`, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
-    res.send(resp.data)
-  } catch (err) {
-    handleError(req, res, err)
-  }
-})
 //
 // MANAGE Service request from patient profile:
 // Routes for managing patient service request
