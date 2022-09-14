@@ -452,6 +452,43 @@ app.get('/profile/patient/serviceRequest/:id', keycloak.protect('realm:patient')
   }
 })
 
+// MANAGE Service request from patient caretaker profile:
+// Routes for managing dependent patient  service request
+// GET /profile/caretaker/dependent/:idDependent/serviceRequests - obtaint a list of study order group by encounter
+// GET /profile/caretaker/dependent/:idDependent/encounter/:id/serviceRequests - obtaint a list of study order for an encounter
+// GET /profile/caretaker/dependent/:idDependent/serviceRequest/:id - obtaint a study order by id
+
+app.get('/profile/caretaker/dependent/:idDependent/serviceRequests', keycloak.protect('realm:patient'), async (req, res) => {
+  const { idDependent } = req.params
+  try {
+    const resp = await axios.get(`/profile/caretaker/dependent/${idDependent}/serviceRequests`, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    res.send(resp.data)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
+
+app.get('/profile/caretaker/dependent/:idDependent/encounter/:id/serviceRequests', keycloak.protect('realm:patient'), async (req, res) => {
+  const { idDependent, id } = req.params
+  try {
+    const resp = await axios.get(`/profile/caretaker/dependent/${idDependent}/encounter/${id}/serviceRequests`, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    res.send(resp.data)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
+
+app.get('/profile/caretaker/dependent/:idDependent/serviceRequest/:id', keycloak.protect('realm:patient'), async (req, res) => {
+  const { idDependent, id } = req.params
+  try {
+    const resp = await axios.get(`/profile/caretaker/dependent/${idDependent}/serviceRequest/${id}`, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    res.send(resp.data)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
+
+
 //
 // PATIENT PROFILE:
 // GET /profile/patient - Read patient details
