@@ -1,0 +1,1 @@
+This directory contains scripts that are executed by endpoints defined in [server.ts](../server.ts)

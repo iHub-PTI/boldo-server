@@ -27,6 +27,8 @@ import {
   filterByAppointmentAvailability as filterByTypeOfAvailability
 } from './util/helpers'
 
+import { archiveAppointments } from './scripts/archiveAppointments'
+
 // We use axios for queries to the iHub Server
 axios.defaults.baseURL = process.env.IHUB_ADDRESS!
 
@@ -1592,6 +1594,19 @@ app.get('/specializations', async (req, res) => {
     handleError(req, res, err)
   }
 })
+
+//
+//ENDPOINT FOR ADMIN
+//this endpoint calls the archiveAppointments script.
+app.post('/profile/admin/archiveAppointments', async (req, res) => {
+  try {
+    const toReturn = await archiveAppointments()
+    res.send('Script run successfully 🔥')
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
+
 
 //
 //
