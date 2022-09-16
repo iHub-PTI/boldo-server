@@ -362,7 +362,7 @@ app.post('/profile/doctor/serviceRequest', keycloak.protect('realm:doctor'), asy
     const resp =  await axios.post('/profile/doctor/serviceRequest', payload, {
       headers: { Authorization: `Bearer ${getAccessToken(req)}` },
     })
-    res.send(resp.data)
+    res.status(resp.status).send(resp.data)
   } catch (err) {
     handleError(req, res, err)
   }
@@ -374,7 +374,7 @@ app.post('/profile/doctor/studyOrderTemplate', keycloak.protect('realm:doctor'),
     const resp =  await axios.post('/profile/doctor/studyOrderTemplate', payload, {
       headers: { Authorization: `Bearer ${getAccessToken(req)}` },
     })
-    res.send(resp.data)
+    res.status(resp.status).send(resp.data)
   } catch (err) {
     handleError(req, res, err)
   }
@@ -420,7 +420,7 @@ app.get('/profile/doctor/serviceRequest/:id', keycloak.protect('realm:doctor'), 
   const { id } = req.params
   try {
     const resp = await axios.get(`/profile/doctor/serviceRequest/${id}`, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
-    res.send(resp.data)
+    res.status(resp.status).send(resp.data)
   } catch (err) {
     handleError(req, res, err)
   }
@@ -447,7 +447,7 @@ app.get('/profile/doctor/serviceRequests', keycloak.protect('realm:doctor'), asy
 app.get('/profile/patient/serviceRequests', keycloak.protect('realm:patient'), async (req, res) => {
   try {
     const resp = await axios.get('/profile/patient/serviceRequests', { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
-    res.send(resp.data)
+    res.status(resp.status).send(resp.data)
   } catch (err) {
     handleError(req, res, err)
   }
@@ -457,7 +457,7 @@ app.get('/profile/patient/encounter/:id/serviceRequests', keycloak.protect('real
   const { id } = req.params
   try {
     const resp = await axios.get(`/profile/patient/encounter/${id}/serviceRequests`, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
-    res.send(resp.data)
+    res.status(resp.status).send(resp.data)
   } catch (err) {
     handleError(req, res, err)
   }
@@ -467,7 +467,7 @@ app.get('/profile/patient/serviceRequest/:id', keycloak.protect('realm:patient')
   const { id } = req.params
   try {
     const resp = await axios.get(`/profile/patient/serviceRequest/${id}`, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
-    res.send(resp.data)
+    res.status(resp.status).send(resp.data)
   } catch (err) {
     handleError(req, res, err)
   }
@@ -483,7 +483,7 @@ app.get('/profile/caretaker/dependent/:idDependent/serviceRequests', keycloak.pr
   const { idDependent } = req.params
   try {
     const resp = await axios.get(`/profile/caretaker/dependent/${idDependent}/serviceRequests`, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
-    res.send(resp.data)
+    res.status(resp.status).send(resp.data)
   } catch (err) {
     handleError(req, res, err)
   }
@@ -493,7 +493,7 @@ app.get('/profile/caretaker/dependent/:idDependent/encounter/:id/serviceRequests
   const { idDependent, id } = req.params
   try {
     const resp = await axios.get(`/profile/caretaker/dependent/${idDependent}/encounter/${id}/serviceRequests`, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
-    res.send(resp.data)
+    res.status(resp.status).send(resp.data)
   } catch (err) {
     handleError(req, res, err)
   }
@@ -503,7 +503,7 @@ app.get('/profile/caretaker/dependent/:idDependent/serviceRequest/:id', keycloak
   const { idDependent, id } = req.params
   try {
     const resp = await axios.get(`/profile/caretaker/dependent/${idDependent}/serviceRequest/${id}`, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
-    res.send(resp.data)
+    res.status(resp.status).send(resp.data)
   } catch (err) {
     handleError(req, res, err)
   }
