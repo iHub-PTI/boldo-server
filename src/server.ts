@@ -1598,7 +1598,7 @@ app.get('/specializations', async (req, res) => {
 //
 //ENDPOINT FOR ADMIN
 //this endpoint calls the archiveAppointments script.
-app.post('/profile/admin/archiveAppointments', async (req, res) => {
+app.post('/profile/admin/archiveAppointments', keycloak.protect('realm:admin'), async (req, res) => {
   try {
     const toReturn = await archiveAppointments()
     res.send('Script run successfully 🔥')
