@@ -1132,14 +1132,19 @@ app.get('/profile/patient/prescriptions', keycloak.protect('realm:patient'), asy
 // POST /profile/patient/appointments - Create appointment for Patient
 // POST /profile/patient/appointments/cancel/:id - Cancel appointment by doctor 
 
-app.get('/profile/patient/appointments', keycloak.protect('realm:patient'), async (req, res) => {
-  try {
-    const { data } = await axios.get<iHub.Appointment[]>(
-      `/profile/patient/appointments?start=${req.query.start}&include=doctor`,
-      {
-        headers: { Authorization: `Bearer ${getAccessToken(req)}` },
-      }
-    )
+app.get('/profile/patient/appointments',
+    keycloak.protect('realm:patient'),
+    query(['start']).isISO8601(), //it is mandatory
+    query(['end']).isISO8601().optional(),
+    async (req, res) => {
+      try {
+        const { start, end } = req.query
+        const { data } = await axios.get<iHub.Appointment[]>(
+            `/profile/patient/appointments?start=${start}&include=doctor${end?`&end=${end}`:''}`,
+            {
+              headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+            }
+        )
 
     const ids = data.map(app => app.id)
     const coreAppointments = await CoreAppointment.find({ id: { $in: ids } })
