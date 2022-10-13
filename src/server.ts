@@ -133,6 +133,7 @@ app.get('/login', keycloak.protect(), (req, res) => {
 // POST /profile/doctor - Update doctor details
 // 
 
+//TODO JAVA 1) agregar al dto los horarios en la respuesta desde el JAVA
 app.get('/profile/doctor', keycloak.protect('realm:doctor'), async (req, res) => {
   try {
     const doctor = await Doctor.findById(req.userId)
@@ -147,6 +148,7 @@ app.get('/profile/doctor', keycloak.protect('realm:doctor'), async (req, res) =>
   }
 })
 
+//TODO JAVA 2) en el front se debe enviar directamente todo en un mismo payLoad, no más separado en dos openHours
 app.post(
   '/profile/doctor',
   keycloak.protect('realm:doctor'),
@@ -183,7 +185,8 @@ app.post(
 // GET /profile/doctor/relatedEncounters/Patient/:id - Get all related encounters from a single patient. List the groups.
 // GET /profile/doctor/relatedEncounters/${id} - Get a single group of related encounters. The ID may from anyone in the group 
 
-//TODO: correct the path 
+//TODO: correct the path
+//TODO JAVA 3) aqui se debe actualizar en el cliente este path. Comparar con el Axios 3 lineas abajo.
 app.get('/profile/doctor/relatedEncounters/Patient/:id/filterEncounterId/:encounterId', keycloak.protect('realm:doctor'), async (req, res) => {
   if (!validate(req, res)) return
   const { id, encounterId } = req.params
@@ -217,6 +220,7 @@ app.get('/profile/doctor/relatedEncounters/:id', keycloak.protect('realm:doctor'
 // GET /profile/doctor/inactivePatients - List inactive Patients 
 //
 
+//TODO JAVA 4) Actualizar el path correctamente como: profile/doctor/validatePatient en el cliente.
 //TODO: update the correct path here, and in client as: profile/doctor/validatePatient 
 app.post('/user/validate', keycloak.protect('realm:doctor'), async (req, res) => {
   const payload = req.body
@@ -231,6 +235,7 @@ app.post('/user/validate', keycloak.protect('realm:doctor'), async (req, res) =>
   }
 })
 
+//TODO JAVA 5) Actualizar el path correctamente como: profile/doctor/validatePatient en el cliente.
 //TODO: update the correct path here and in client as: /profile/doctor/inactivePatients
 app.get('/inactive', keycloak.protect('realm:doctor'), async (req, res) => {
   try {
@@ -937,6 +942,7 @@ app.get('/profile/caretaker/dependent/:idDependent/relatedEncounters', keycloak.
 // DELETE /profile/doctor/appointments/:id - Delete doctor appointment
 // POST /profile/doctor/appointments/cancel/:id - Cancel appointment by doctor 
 
+//TODO JAVA 6) llevar lógica en core-health
 app.get(
   '/profile/doctor/appointments',
   keycloak.protect('realm:doctor'),
@@ -990,6 +996,8 @@ app.get(
   }
 )
 
+//TODO JAVA 7) este endpoint (mal llamado appointments) solamente genera "PrivateEvents".
+//Se debe trasladar la lógica con un nuevo path para creación de "OtherEvents" con tipo "PrivateEvents"
 app.post(
   '/profile/doctor/appointments',
   keycloak.protect('realm:doctor'),
@@ -1011,6 +1019,7 @@ app.post(
   }
 )
 
+//TODO JAVA 8) retorna el appointment. Ver como mejorar la lógica del "open" como parametro.
 app.get('/profile/doctor/appointments/:id', keycloak.protect('realm:doctor'), async (req, res) => {
   const { id } = req.params
 
@@ -1042,6 +1051,8 @@ app.get('/profile/doctor/appointments/:id', keycloak.protect('realm:doctor'), as
   }
 })
 
+//TODO JAVA 9) "update" del status appointment solamente de la lógica local. Debe ser un PUT, o PATCH.
+//se controla que el update se realice sobre un appointment que corresponda al del médico.
 app.post(
   '/profile/doctor/appointments/:id',
   keycloak.protect('realm:doctor'),
@@ -1102,6 +1113,7 @@ async function cancelAppointment(req : express.Request,res:express.Response, rol
   }
 }
 
+//TODO JAVA 10) CancelAppointment para cualquier Rol (doctor, paciente). Se debe actualizar el CoreAppointment de la lógica local.
 app.post('/profile/doctor/appointments/cancel/:id',
 keycloak.protect('realm:doctor'),
 async (req, res) => {
@@ -1132,6 +1144,7 @@ app.get('/profile/patient/prescriptions', keycloak.protect('realm:patient'), asy
 // POST /profile/patient/appointments - Create appointment for Patient
 // POST /profile/patient/appointments/cancel/:id - Cancel appointment by doctor 
 
+//TODO JAVA 11) se debe utilizar la logica en el modelo local (postgres).
 app.get('/profile/patient/appointments',
     keycloak.protect('realm:patient'),
     query(['start']).isISO8601(), //it is mandatory
@@ -1167,6 +1180,7 @@ app.get('/profile/patient/appointments',
   }
 })
 
+//TODO JAVA 12) se debe utilizar la logica en el modelo local (postgres). Similar al del /profile/doctor.
 app.get('/profile/patient/appointments/:id', keycloak.protect('realm:patient'), async (req, res) => {
   const { id } = req.params
 
@@ -1198,6 +1212,7 @@ app.get('/profile/patient/appointments/:id', keycloak.protect('realm:patient'), 
   }
 })
 
+//TODO JAVA 13) Se reserva del appointment. Se toma en cuenta el APPOINTMENT_LENGTH. Se controla que no exista overlapping con otro slot.
 app.post(
   '/profile/patient/appointments',
   keycloak.protect('realm:patient'),
@@ -1243,6 +1258,7 @@ app.post(
   }
 )
 
+//TODO JAVA 14) Llama al mimso servicio que en 10) pero con el rol de Patient.
 app.post('/profile/patient/appointments/cancel/:id',
 keycloak.protect('realm:patient'),
 async (req, res) => {
@@ -1276,6 +1292,8 @@ app.get('/profile/caretaker/dependent/:id/prescriptions', keycloak.protect('real
 // POST /profile/caretaker/dependent/:id/appointments - Create appointment for dependent
 // POST /profile/caretaker/appointments/cancel/:id - Cancel appointment by caretaker 
 
+//TODO JAVA 15) es muy similar al caso en 11) para profile/patient/appointments. Se debe reutilizar el servicio local.
+//Es código repetido, y se debe reutilizar el mismo service en lo posible.
 app.get('/profile/caretaker/dependent/:id/appointments', keycloak.protect('realm:patient'), async (req, res) => {
   const { id } = req.params
   try {
@@ -1307,6 +1325,7 @@ app.get('/profile/caretaker/dependent/:id/appointments', keycloak.protect('realm
   }
 })
 
+//TODO JAVA 16) similar al caso de GET en 12). Reutilizar el servicio en lo posible. Se debe amacenar la lógica en el model postgres. También retornar el token del boldoSocket.
 app.get('/profile/caretaker/dependent/:idDependent/appointments/:id', keycloak.protect('realm:patient'), async (req, res) => {
   const { idDependent,id } = req.params
   try {
@@ -1336,6 +1355,8 @@ app.get('/profile/caretaker/dependent/:idDependent/appointments/:id', keycloak.p
     handleError(req, res, err)
   }
 })
+
+//TODO JAVA 17) Similar al caso en 13. Se debe reutilizar el código en lo posible.
 app.post(
   '/profile/caretaker/dependent/:id/appointments',
   keycloak.protect('realm:patient'),
@@ -1382,7 +1403,7 @@ app.post(
 )
 
 
-
+//TODO JAVA 18) Similar al caso en 14, pero con rol de caretaker.
 app.post('/profile/caretaker/appointments/cancel/:id',
 keycloak.protect('realm:patient'),
 async (req, res) => {
@@ -1394,8 +1415,10 @@ async (req, res) => {
 // GET /doctors - Fetch and search doctors
 // GET /doctors/:id - Fetch doctor details
 // GET /doctors/:id/availability - Fetch doctor details
-// 
+//
 
+//TODO JAVA 19) Se debe controlar si en el queryString se consulta por el appointmentType, y de acuerdo al modelo local filtrar los doctores
+//con la especialidad correspondiente.
 app.get('/doctors', async (req, res) => {
   try {
     const queryString = req.originalUrl.split('?')[1]
@@ -1437,6 +1460,7 @@ app.get('/doctors', async (req, res) => {
   }
 })
 
+
 app.get('/doctors/:id', async (req, res) => {
   try {
     const resp = await axios.get<iHub.Doctor>(`/doctors/${req.params.id}`)
@@ -1446,6 +1470,7 @@ app.get('/doctors/:id', async (req, res) => {
   }
 })
 
+//TODO JAVA 20) se debe reescribir los servicios utilizando el modelo local (postgres).
 app.get(
   '/doctors/:id/availability',
   param('id').isString(),
@@ -1603,6 +1628,7 @@ app.get('/specializations', async (req, res) => {
 //
 //ENDPOINT FOR ADMIN
 //this endpoint calls the archiveAppointments script.
+//TODO JAVA 21) Este endpoint es invocado por el script periódico.  Se debe reescribir el "archiveAppointments()" actualizando el modelo local.
 app.post('/profile/admin/archiveAppointments', keycloak.protect('realm:admin'), async (req, res) => {
   try {
     const toReturn = await archiveAppointments()
