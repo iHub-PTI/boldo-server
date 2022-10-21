@@ -7,7 +7,7 @@ export interface ICoreAppointment extends Document {
   date: Date
 }
 
-const CoreAppointmentSchema: Schema = new Schema(
+export const CoreAppointmentSchema: Schema = new Schema(
   {
     status: { type: String, enum: ['upcoming', 'open', 'closed', 'locked','cancelled'], required: true },
     appointmentType: { type: String, enum: ['A', 'V'], required: true },
