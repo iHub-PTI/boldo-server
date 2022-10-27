@@ -1215,7 +1215,7 @@ app.post(
 
     const now = new Date()
     now.setMilliseconds(now.getMilliseconds() + APPOINTMENT_LENGTH)
-    if (startDate < now) return res.status(400).send({ message: "'start' has to be at least 30 minutes in the future" })
+    if (startDate < now) return res.status(400).send({ message: "'start' has to be at least "+ process.env.APPOINTMENT_LENGTH +" minutes in the future" })
 
     try {
       const availabilities = await calculateAvailability(doctorId, startDate, endDate)
@@ -1353,7 +1353,7 @@ app.post(
 
     const now = new Date()
     now.setMilliseconds(now.getMilliseconds() + APPOINTMENT_LENGTH)
-    if (startDate < now) return res.status(400).send({ message: "'start' has to be at least 30 minutes in the future" })
+    if (startDate < now) return res.status(400).send({ message: "'start' has to be at least "+process.env.APPOINTMENT_LENGTH+ " minutes in the future" })
 
     try {
       const availabilities = await calculateAvailability(doctorId, startDate, endDate)

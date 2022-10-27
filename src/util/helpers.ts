@@ -12,7 +12,7 @@ import { ICoreAppointment } from '../models/CoreAppointment'
 
 export type Interval = [number, number]
 
-export const APPOINTMENT_LENGTH = 30 /**minutes in milliseconds*/ * 1000 * 60
+export const APPOINTMENT_LENGTH = Number(process.env.APPOINTMENT_LENGTH) /**minutes in milliseconds*/ * 1000 * 60
 
 export const calculateAvailability = async (doctorId: string, start: Date, end: Date) => {
 
