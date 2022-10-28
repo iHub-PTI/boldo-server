@@ -63,7 +63,7 @@ export const calculateAvailability = async (doctorId: string, start: Date, end: 
         let start = i[0]
         let end = i[1]
         let appType = i[2]
-        
+
         // let [start, end] = interval[0]
         // let appType = interval[1]
         while (end - start >= APPOINTMENT_LENGTH) {
@@ -108,7 +108,7 @@ const calculateOpenHours = (openHours: IDoctor['openHours'], start: Date, end: D
 
 export const calculateNextAvailability = async (doctorId: string) => {
   const startDate = new Date()
-  startDate.setMilliseconds(startDate.getMilliseconds() + APPOINTMENT_LENGTH)
+  startDate.setMilliseconds(startDate.getMilliseconds() + APPOINTMENT_WAIT_RESERVATION_LENGTH)
   const endDate = new Date(startDate)
   endDate.setDate(endDate.getDate() + 7)
   const availabilitiesWeek = await calculateAvailability(doctorId, startDate, endDate)
