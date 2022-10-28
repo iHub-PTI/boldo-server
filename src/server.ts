@@ -22,6 +22,7 @@ import {
   handleError,
   validate,
   APPOINTMENT_LENGTH,
+  APPOINTMENT_WAIT_RESERVATION_LENGTH,
   calculateNextAvailability,
   createToken,
   filterByAppointmentAvailability as filterByTypeOfAvailability
@@ -1197,8 +1198,8 @@ app.post(
     endDate.setMilliseconds(endDate.getMilliseconds() + APPOINTMENT_LENGTH)
 
     const now = new Date()
-    now.setMilliseconds(now.getMilliseconds() + APPOINTMENT_LENGTH)
-    if (startDate < now) return res.status(400).send({ message: "'start' has to be at least "+ process.env.APPOINTMENT_LENGTH +" minutes in the future" })
+    now.setMilliseconds(now.getMilliseconds() + APPOINTMENT_WAIT_RESERVATION_LENGTH)
+    if (startDate < now) return res.status(400).send({ message: "'start' has to be at least "+ process.env.APPOINTMENT_WAIT_RESERVATION_LENGTH +" minutes in the future" })
 
     try {
       const availabilities = await calculateAvailability(doctorId, startDate, endDate)
@@ -1335,8 +1336,8 @@ app.post(
     endDate.setMilliseconds(endDate.getMilliseconds() + APPOINTMENT_LENGTH)
 
     const now = new Date()
-    now.setMilliseconds(now.getMilliseconds() + APPOINTMENT_LENGTH)
-    if (startDate < now) return res.status(400).send({ message: "'start' has to be at least "+process.env.APPOINTMENT_LENGTH+ " minutes in the future" })
+    now.setMilliseconds(now.getMilliseconds() + APPOINTMENT_WAIT_RESERVATION_LENGTH)
+    if (startDate < now) return res.status(400).send({ message: "'start' has to be at least "+process.env.APPOINTMENT_WAIT_RESERVATION_LENGTH+ " minutes in the future" })
 
     try {
       const availabilities = await calculateAvailability(doctorId, startDate, endDate)
@@ -1444,7 +1445,7 @@ app.get(
       let endDate = new Date(end as string)
 
       const now = new Date()
-      now.setMilliseconds(now.getMilliseconds() + APPOINTMENT_LENGTH)
+      now.setMilliseconds(now.getMilliseconds() + APPOINTMENT_WAIT_RESERVATION_LENGTH)
 
       if (startDate < now) startDate = now
       if (endDate < startDate)
