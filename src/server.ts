@@ -326,7 +326,7 @@ app.delete(
 // Routes for managing patient diagnostic reports
 // GET /profile/doctor/diagnosticReports - List Patient's diagnostic reports 
 // GET /profile/doctor/diagnosticReport/:id - get a diagnostic report
-// 
+// POST /profile/doctor/diagnosticReport - create a patient diagnostic report
 app.get('/profile/doctor/diagnosticReports', keycloak.protect('realm:doctor'), async (req, res) => {
   if (!validate(req, res)) return
   try {
@@ -344,6 +344,18 @@ app.get('/profile/doctor/diagnosticReport/:id', keycloak.protect('realm:doctor')
   try {
     const resp = await axios.get(`/profile/doctor/diagnosticReport/${id}`, 
     { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    res.status(resp.status).send(resp.data)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
+
+app.post('/profile/doctor/diagnosticReport', keycloak.protect('realm:doctor'), async (req, res) => {
+  const payload = req.body
+  const startDate = new Date(payload.effectiveDate)
+  if (startDate > new Date()) return res.status(400).send({ message: "invalid effectiveDate" })
+  try {
+    const resp = await axios.post('/profile/doctor/diagnosticReport', payload, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
     res.status(resp.status).send(resp.data)
   } catch (err) {
     handleError(req, res, err)
