@@ -10,7 +10,7 @@
     "migrateDev": "ts-node --dir scripts migrate",
     "migrate": "node bin/scripts/migrate",
     "archiveAppointmentsDev": "ts-node --dir scripts archiveAppointments.ts",
-    "archiveAppointments": "node bin/scripts/archiveAppointments"
+    "archiveAppointments": "node dist/scripts/archiveAppointments"
   },
   "dependencies": {
     "@types/compression": "^1.7.0",

@@ -71,3 +71,5 @@ This project was created as part of the iHub COVID-19 project in collaboration b
 
 This project is licensed under
 [AGPL v3](LICENSE)
+
+.
