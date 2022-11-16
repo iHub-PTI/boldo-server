@@ -753,6 +753,7 @@ app.get('/profile/doctor/medications', query('content').isString().optional(), k
   }
 });
 
+
 //
 // ENCOUNTER:
 // Protected routes for managing encounters
@@ -1621,6 +1622,18 @@ app.post('/profile/admin/archiveAppointments', keycloak.protect('realm:admin'), 
     const toReturn = await archiveAppointments()
     res.send('Script run successfully 🔥')
   } catch (err) {
+    handleError(req, res, err)
+  }
+})
+
+app.post('/profile/admin/farmanuario/synchronize', keycloak.protect('realm:admin'), async (req, res) => {
+  try {
+    const resp =  await axios.post('/farmanuario/synchronize', {},  {
+      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+    })
+    res.send('Status: ' + resp.status + ' Data: ' + resp.data)
+  } catch (err) {
+    res.send(err)
     handleError(req, res, err)
   }
 })
