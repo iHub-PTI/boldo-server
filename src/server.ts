@@ -1626,6 +1626,18 @@ app.post('/profile/admin/archiveAppointments', keycloak.protect('realm:admin'), 
   }
 })
 
+app.post('/profile/admin/farmanuario/synchronize', keycloak.protect('realm:admin'), async (req, res) => {
+  try {
+    const resp =  await axios.post('/farmanuario/synchronize', {},  {
+      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+    })
+    res.send('Status: ' + resp.status + ' Data: ' + resp.data)
+  } catch (err) {
+    res.send(err)
+    handleError(req, res, err)
+  }
+})
+
 
 //
 //
