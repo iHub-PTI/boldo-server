@@ -759,6 +759,7 @@ app.get('/profile/doctor/medications', query('content').isString().optional(), k
 // Protected routes for managing encounters
 // PUT /profile/doctor/appointments/:id/encounter - Update the encounter
 // GET /profile/doctor/appointments/:id/encounter - Get the encounter
+// GET /profile/doctor/appointments/:id/encounter/prescription/pdf - Prints PDF from Prescription inside Encounter by appointmentID
 //
 
 app.put('/profile/doctor/appointments/:id/encounter', keycloak.protect('realm:doctor'), async (req, res) => {
@@ -785,6 +786,30 @@ app.get('/profile/doctor/appointments/:id/encounter', keycloak.protect('realm:do
       headers: { Authorization: `Bearer ${getAccessToken(req)}` },
     })
     res.send({ encounter: response.data })
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
+
+app.get('/profile/doctor/appointments/:id/encounter/prescription/pdf', keycloak.protect('realm:doctor'), async (req, res) => {
+  if (!validate(req, res)) return
+  const { id } = req.params
+
+  try {
+    const response = await axios.get(`/profile/doctor/appointments/${id}/encounter/prescription/pdf`, {
+      responseType: 'arraybuffer',
+      headers: {
+        Authorization: `Bearer ${getAccessToken(req)}`,
+        'Content-Type': 'application/json',
+        'Accept': 'application/pdf'
+      },
+    })
+    let filename = response.headers['content-disposition'].split('filename="')[1].split('.')[0] //obtains file name from header
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename=${filename}.pdf`);
+    res.setHeader('Content-Length', response.data.length)
+    res.end(response.data)
   } catch (err) {
     handleError(req, res, err)
   }
@@ -1615,8 +1640,8 @@ app.get('/specializations', async (req, res) => {
 })
 
 //
-//ENDPOINT FOR ADMIN
-//this endpoint calls the archiveAppointments script.
+//ENDPOINTS FOR ADMIN
+//POST /profile/admin/archiveAppointments - calls the archiveAppointments script.
 app.post('/profile/admin/archiveAppointments', keycloak.protect('realm:admin'), async (req, res) => {
   try {
     const toReturn = await archiveAppointments()
@@ -1638,6 +1663,26 @@ app.post('/profile/admin/farmanuario/synchronize', keycloak.protect('realm:admin
   }
 })
 
+//
+// REPORTS [open endpoint]
+// GET /reports/:report_identifier - Prescription verification URL
+app.get('/reports/:id',
+    param('id').isNumeric(),
+    query('verification_code').isString(),
+    async (req:express.Request, res:express.Response) => {
+  if (!validate(req, res)){ return }
+
+  const { id:reportId } = req.params
+  const { verification_code: verificationCode } = req.query
+
+  try {
+    const response = await axios.get(`/reports/${reportId}?verification_code=${verificationCode}`)
+    res.set('Content-Type', 'text/html');
+    res.end(response.data)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
 
 //
 //
