@@ -132,7 +132,8 @@ app.get('/login', keycloak.protect(), (req, res) => {
 // Protected Routes for managing profile information
 // GET /profile/doctor - Read doctor details
 // POST /profile/doctor - Update doctor details
-// 
+// GET /profile/doctor/organizations - list the organizations the doctor is associated with
+//
 
 app.get('/profile/doctor', keycloak.protect('realm:doctor'), async (req, res) => {
   try {
@@ -177,6 +178,17 @@ app.post(
     }
   }
 )
+
+app.get('/profile/doctor/organizations', keycloak.protect('realm:doctor'), async (req, res) => {
+  if (!validate(req, res)) return
+  try {
+    const resp = await axios.get(`/profile/doctor/organizations`, 
+    { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    res.status(resp.status).send(resp.data)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
 
 //
 // RELATED ENCOUNTERS
