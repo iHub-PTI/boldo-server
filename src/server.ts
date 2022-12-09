@@ -794,7 +794,7 @@ app.get('/profile/doctor/medications', query('content').isString().optional(), k
 // Protected routes for managing encounters
 // PUT /profile/doctor/appointments/:id/encounter - Update the encounter
 // GET /profile/doctor/appointments/:id/encounter - Get the encounter
-// GET /profile/doctor/appointments/:id/encounter/prescription/pdf - Prints PDF from Prescription inside Encounter by appointmentID
+// GET /profile/doctor/appointments/:id/encounter/reports - Prints PDF reports generated in the Encounter by appointmentID
 //
 
 app.put('/profile/doctor/appointments/:id/encounter', keycloak.protect('realm:doctor'), async (req, res) => {
@@ -826,12 +826,11 @@ app.get('/profile/doctor/appointments/:id/encounter', keycloak.protect('realm:do
   }
 })
 
-app.get('/profile/doctor/appointments/:id/encounter/prescription/pdf', keycloak.protect('realm:doctor'), async (req, res) => {
+app.get('/profile/doctor/appointments/:id/encounter/reports', keycloak.protect('realm:doctor'), async (req, res) => {
   if (!validate(req, res)) return
   const { id } = req.params
-
   try {
-    const response = await axios.get(`/profile/doctor/appointments/${id}/encounter/prescription/pdf`, {
+    const response = await axios.get(`/profile/doctor/appointments/${id}/encounter/reports?${req.query.reports ? `reports=${req.query.reports}`: ''}`, {
       responseType: 'arraybuffer',
       headers: {
         Authorization: `Bearer ${getAccessToken(req)}`,
