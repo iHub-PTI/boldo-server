@@ -601,6 +601,8 @@ app.put('/profile/patient/inactivate/caretaker/:id', keycloak.protect('realm:pat
 // POST /profile/caretaker/dependent/s3/validateDocument/idCardParaguay/side2/validate?hash=${hash}
 // GET /profile/caretaker/dependent/s4/validateSelfie/uploadPresigned?hash=${hash}
 // POST /profile/caretaker/dependent/s4/validateSelfie/validate?hash=${hash}
+// GET /profile/caretaker/dependent/qrcode/decode?qr=${qrCode} - Decode QR code of dependent patient
+// POST /profile/caretaker/dependent/add/qrcode?qr=${qrCode} - Add dependent patient by QR code
 
 app.get('/profile/caretaker/dependents', keycloak.protect('realm:patient'), async (req, res) => {
   try {
@@ -737,6 +739,27 @@ app.post('/profile/caretaker/dependent/s4/validateSelfie/validate', query('hash'
   const { hash } = req.query as any
   try {
     const resp = await axios.post(`/profile/caretaker/dependent/s4/validateSelfie/validate?hash=${hash}`, payload, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    res.status(resp.status).send(resp.data)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+});
+
+app.get('/profile/caretaker/dependent/qrcode/decode', query('qr').isString().notEmpty(), keycloak.protect('realm:patient'), async (req, res) => {
+  const { qrCode } = req.query as any
+  try {
+    const resp = await axios.get(`/profile/caretaker/qrcode/decode?qr=${qrCode}`, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    res.status(resp.status).send(resp.data)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+});
+
+app.post('/profile/caretaker/dependent/add/qrcode', query('qr').isString().notEmpty(), keycloak.protect('realm:patient'), async (req, res) => {
+  const payload = req.body
+  const { qrCode } = req.query as any
+  try {
+    const resp = await axios.post(`/profile/caretaker/dependent/add/qrcode?qr=${qrCode}`, payload, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
     res.status(resp.status).send(resp.data)
   } catch (err) {
     handleError(req, res, err)
@@ -1541,6 +1564,8 @@ app.get(
 // GET /profile/patient/diagnosticReports - Read diagnostic reports of Patient
 // GET /profile/patient/diagnosticReports/:id - Read diagnostic report of Patient by id
 // POST /profile/patient/diagnosticReport - Create diagnostic report from Patient profile
+// POST /profile/patient/qrcode/generate - QR code generate from Patient profile
+
 app.get('/profile/patient/diagnosticReports', keycloak.protect('realm:patient'), async (req, res) => {
   try {
     const resp = await axios.get('/profile/patient/diagnosticReports', { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
@@ -1575,6 +1600,15 @@ app.post('/profile/patient/diagnosticReport', keycloak.protect('realm:patient'),
     handleError(req, res, err)
   }
 })
+
+app.post('/profile/patient/qrcode/generate', keycloak.protect('realm:patient'), async (req, res) => {
+  try {
+    const resp = await axios.post('/profile/patient/qrcode/generate', {}, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    res.status(resp.status).send(resp.data)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+});
 
 // DIAGNOSTIC REPORTS for DEPENDENTS:
 // GET /profile/caretaker/dependent/:id/diagnosticReports - Read diagnostic reports of Patient
