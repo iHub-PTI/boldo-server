@@ -746,9 +746,9 @@ app.post('/profile/caretaker/dependent/s4/validateSelfie/validate', query('hash'
 });
 
 app.get('/profile/caretaker/dependent/qrcode/decode', query('qr').isString().notEmpty(), keycloak.protect('realm:patient'), async (req, res) => {
-  const { qrCode } = req.query as any
+  const { qr } = req.query as any
   try {
-    const resp = await axios.get(`/profile/caretaker/qrcode/decode?qr=${qrCode}`, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    const resp = await axios.get(`/profile/caretaker/qrcode/decode?qr=${qr}`, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
     res.status(resp.status).send(resp.data)
   } catch (err) {
     handleError(req, res, err)
@@ -757,9 +757,9 @@ app.get('/profile/caretaker/dependent/qrcode/decode', query('qr').isString().not
 
 app.post('/profile/caretaker/dependent/add/qrcode', query('qr').isString().notEmpty(), keycloak.protect('realm:patient'), async (req, res) => {
   const payload = req.body
-  const { qrCode } = req.query as any
+  const { qr } = req.query as any
   try {
-    const resp = await axios.post(`/profile/caretaker/dependent/add/qrcode?qr=${qrCode}`, payload, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    const resp = await axios.post(`/profile/caretaker/dependent/add/qrcode?qr=${qr}`, payload, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
     res.status(resp.status).send(resp.data)
   } catch (err) {
     handleError(req, res, err)
