@@ -1684,7 +1684,34 @@ app.get('/profile/organization-manager/Organization', keycloak.protect('realm:or
   }
 })
 
+//
+// MANAGE PractitionerRole:
+// Routes for managing relation among doctors and organizations
+// POST /profile/organization-manager/DoctorRole - create a relation among doctor and organization 
+// GET /profile/organization-manager/DoctorRole - list relation among doctor and organizations
+//
 
+app.post('/profile/organization-manager/DoctorRole', keycloak.protect('realm:organization_manager'), async (req, res) => {
+  const payload = req.body
+  try {
+    const resp =  await axios.post('/profile/organization-manager/DoctorRole', payload, {
+      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+    })
+    res.status(resp.status).send(resp.data)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
+
+app.get('/profile/organization-manager/DoctorRole', keycloak.protect('realm:organization_manager'), async (req, res) => {
+  try {
+    const resp = await axios.get(`/profile/organization-manager/DoctorRole`, 
+    { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    res.status(resp.status).send(resp.data)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
 
 //
 // Utils:
