@@ -195,6 +195,8 @@ app.get('/profile/doctor/organizations', keycloak.protect('realm:doctor'), async
 // Manage encounters what were linked among them through the same reason encounter
 // GET /profile/doctor/relatedEncounters/Patient/:id - Get all related encounters from a single patient. List the groups.
 // GET /profile/doctor/relatedEncounters/${id} - Get a single group of related encounters. The ID may from anyone in the group 
+// GET /profile/doctor/patient/:patientId/encounters - Get all encounter by patientId
+// GET /profile/doctor/patient/:patientId/encounters/:encounterId - Get summary encounter by id
 
 //TODO: correct the path 
 app.get('/profile/doctor/relatedEncounters/Patient/:id/filterEncounterId/:encounterId', keycloak.protect('realm:doctor'), async (req, res) => {
@@ -222,6 +224,33 @@ app.get('/profile/doctor/relatedEncounters/:id', keycloak.protect('realm:doctor'
     handleError(req, res, err)
   }
 })
+
+app.get('/profile/doctor/patient/:patientId/encounters', keycloak.protect('realm:doctor'), async (req, res) => {
+  if (!validate(req, res)) return
+  const { patientId } = req.params
+  const { doctorId, content, count, offset, order } = req.query as any
+  try {
+    const response = await axios.get(`/profile/doctor/patient/${patientId}/encounters?doctorId=${doctorId}&content=${content}&count=${count}&offset=${offset}&order=${order}`, {
+      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+    })
+    res.send(response.data)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+});
+
+app.get('/profile/doctor/patient/:patientId/encounters/:encounterId', keycloak.protect('realm:doctor'), async (req, res) => {
+  if (!validate(req, res)) return
+  const { patientId, encounterId } = req.params
+  try {
+    const response = await axios.get(`/profile/doctor/patient/${patientId}/encounters/${encounterId}`, {
+      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+    })
+    res.send(response.data)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+});
 
 //
 // MANAGE Patient activation:
