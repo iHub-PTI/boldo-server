@@ -226,11 +226,22 @@ app.get('/profile/doctor/relatedEncounters/:id', keycloak.protect('realm:doctor'
 })
 
 app.get('/profile/doctor/patient/:patientId/encounters', keycloak.protect('realm:doctor'), async (req, res) => {
-  if (!validate(req, res)) return
-  const { patientId } = req.params
-  const { doctorId, content, count, offset, order } = req.query as any
+  if (!validate(req, res)) return;
+  const { patientId } = req.params;
+  const { doctorId, content, count, offset, order } = req.query as any;
+  var queryParams = "";
+  if (doctorId || content || count || offset || order) {
+     queryParams = "?";
+  }
+  const path = `/profile/doctor/patient/${patientId}/encounters${queryParams}
+  ${doctorId ? `doctorId=${doctorId}` : ''}
+  ${content ? `&content=${content}` : ''}
+  ${count ? `&count=${count}` : ''}
+  ${offset ? `&offset=${offset}` : ''}
+  ${order ? `&order=${order}` : ''}`
+  console.log(path)
   try {
-    const response = await axios.get(`/profile/doctor/patient/${patientId}/encounters?doctorId=${doctorId}&content=${content}&count=${count}&offset=${offset}&order=${order}`, {
+    const response = await axios.get(path, {
       headers: { Authorization: `Bearer ${getAccessToken(req)}` },
     })
     res.send(response.data)
