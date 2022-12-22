@@ -971,48 +971,55 @@ app.get(
   keycloak.protect('realm:doctor'),
   query(['start', 'end']).isISO8601().optional(),
   query('status').isString().optional(),
+  query('organizationId').isString().optional(),
   async (req, res) => {
     if (!validate(req, res)) return
 
-    const { status, start, end } = req.query
+    const { status, start, end, organizationId } = req.query
 
     try {
-      const { data } = await axios.get<iHub.Appointment[]>(
-        `/profile/doctor/appointments?include=patient${start && end ? `&start=${start}&end=${end}` : ''}`,
+      const  resp  = await axios.get<iHub.Appointment[]>(
+        `/profile/doctor/appointments?include=patient${start && end ? `&start=${start}&end=${end}` : ''}${organizationId ? `&organizationId=${organizationId}` : ''}`,
         {
           headers: { Authorization: `Bearer ${getAccessToken(req)}` },
         }
       )
-      const ids = data.map(appointment => appointment.id)
-      const coreAppointments = await CoreAppointment.find({ id: { $in: ids } })
-
-      let FHIRAppointments = [] as (iHub.Appointment & { type: string; status: ICoreAppointment['status'] })[]
-
-      FHIRAppointments = coreAppointments.map(appointment => {
-        const FHIRAppointment = data.find(app => app.id === appointment.id)
-        if (!FHIRAppointment) throw new Error(`FHIR Appointment must exist but not found for ID: ${appointment.id}!`)
-
-        const minutes = differenceInMinutes(parseISO(FHIRAppointment.start as any), Date.now())
-        if (minutes < 15 && appointment.status === 'upcoming') {
-          return { ...FHIRAppointment, type: 'Appointment', status: 'open' }
-        } else {
-          return { ...FHIRAppointment, type: 'Appointment', status: appointment.status }
+      const { data } = resp  
+      if(Array.isArray(data)){
+        const ids = data.map(appointment => appointment.id)
+        const coreAppointments = await CoreAppointment.find({ id: { $in: ids } })
+  
+        let FHIRAppointments = [] as (iHub.Appointment & { type: string; status: ICoreAppointment['status'] })[]
+  
+        FHIRAppointments = coreAppointments.map(appointment => {
+          const FHIRAppointment = data.find(app => app.id === appointment.id)
+          if (!FHIRAppointment) throw new Error(`FHIR Appointment must exist but not found for ID: ${appointment.id}!`)
+  
+          const minutes = differenceInMinutes(parseISO(FHIRAppointment.start as any), Date.now())
+          if (minutes < 15 && appointment.status === 'upcoming') {
+            return { ...FHIRAppointment, type: 'Appointment', status: 'open' }
+          } else {
+            return { ...FHIRAppointment, type: 'Appointment', status: appointment.status }
+          }
+        })
+  
+        let token = ''
+        if (status) {
+          FHIRAppointments = FHIRAppointments.filter(appointment => appointment.status === status)
+          if (status === 'open') {
+            const ids = FHIRAppointments.map(app => app.id)
+            token = createToken(ids, 'doctor')
+          }
         }
-      })
-
-      let token = ''
-      if (status) {
-        FHIRAppointments = FHIRAppointments.filter(appointment => appointment.status === status)
-        if (status === 'open') {
-          const ids = FHIRAppointments.map(app => app.id)
-          token = createToken(ids, 'doctor')
-        }
+  
+        let appointments = [] as IAppointment[]
+        if (!status) appointments = await Appointment.find({ doctorId: req.userId })
+        res.status(resp.status).send({ appointments: [...FHIRAppointments, ...appointments], token })
+      }else{
+        res.status(resp.status).send()
       }
+      
 
-      let appointments = [] as IAppointment[]
-      if (!status) appointments = await Appointment.find({ doctorId: req.userId })
-
-      res.send({ appointments: [...FHIRAppointments, ...appointments], token })
     } catch (err) {
       handleError(req, res, err)
     }
@@ -1228,10 +1235,11 @@ app.post(
   body('doctorId').isString(),
   body('start').isISO8601(),
   body('appointmentType').isString(), 
+  body('organizationId').isString(), 
   async (req, res) => {
     if (!validate(req, res)) return
     
-    const { start, doctorId,appointmentType } = req.body
+    const { start, doctorId,appointmentType, organizationId } = req.body
     if (!["V","A"].includes(appointmentType)) res.status(400).send({ message: "Appointmente type must be Virtual (V) or Ambulatory (A)" })
     const startDate = new Date(start)
     const endDate = new Date(start)
@@ -1252,7 +1260,7 @@ app.post(
 
       const resp = await axios.post(
         '/profile/patient/appointments',
-        { doctorId, start, end: endDate.toISOString(),appointmentType },
+        { doctorId, start, end: endDate.toISOString(),appointmentType, organizationId },
         {
           headers: { Authorization: `Bearer ${getAccessToken(req)}` },
         }
