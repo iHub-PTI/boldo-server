@@ -791,7 +791,9 @@ app.get('/profile/doctor/appointments/:id/encounter', keycloak.protect('realm:do
   }
 })
 
-app.get('/profile/doctor/appointments/:id/encounter/reports', keycloak.protect('realm:doctor'), async (req, res) => {
+app.get('/profile/doctor/appointments/:id/encounter/reports',
+    cors({ origin: AllowedOrigins, credentials: true, exposedHeaders:['Content-Disposition'] }),
+    keycloak.protect('realm:doctor'), async (req, res) => {
   if (!validate(req, res)) return
   const { id } = req.params
   try {
