@@ -589,7 +589,7 @@ app.get('/profile/caretaker/dependent/:idDependent/serviceRequest/:id', keycloak
 // PATIENT PROFILE:
 // GET /profile/patient - Read patient details
 // POST /profile/patient - Update patient details
-//
+//  GET  /profile/patient/organizations - list of organizations to which a patient has subscribed
 
 app.get('/profile/patient', keycloak.protect('realm:patient'), async (req, res) => {
   try {
@@ -605,6 +605,15 @@ app.post('/profile/patient', keycloak.protect('realm:patient'), async (req, res)
   try {
     await axios.put('/profile/patient', payload, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
     res.sendStatus(200)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
+
+app.get('/profile/patient/organizations', keycloak.protect('realm:patient'), async (req, res) => {
+  try {
+    const resp = await axios.get('/profile/patient/organizations', { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    res.status(resp.status).send(resp.data)
   } catch (err) {
     handleError(req, res, err)
   }
