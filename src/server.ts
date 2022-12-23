@@ -278,7 +278,7 @@ app.get('/profile/doctor/patient/:patientId/encounters/:encounterId', keycloak.p
 // GET /profile/doctor/inactivePatients - List inactive Patients 
 //
 
-//TODO: update the correct path here, and in client as: profile/doctor/validatePatient 
+//TODO: delete DEPRECATED ENDPOINT
 app.post('/user/validate', keycloak.protect('realm:doctor'), async (req, res) => {
   const payload = req.body
   try {
@@ -287,12 +287,24 @@ app.post('/user/validate', keycloak.protect('realm:doctor'), async (req, res) =>
     })
     res.send(resp.data)
   } catch (err) {
-    res.send(err)
     handleError(req, res, err)
   }
 })
 
-//TODO: update the correct path here and in client as: /profile/doctor/inactivePatients
+//TODO: delete comment. This endpoint is the same as the one above but with corrected path and operation
+app.put('/profile/doctor/validatePatient', query('username').notEmpty(), keycloak.protect('realm:doctor'), async (req, res) => {
+  const payload = req.body
+  try {
+    const resp =  await axios.put(`profile/doctor/validatePatient?username=${req.query.username}`, payload,{
+      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+    })
+    res.send(resp.data)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
+
+//TODO: delete DEPRECATED endpoint.
 app.get('/inactive', keycloak.protect('realm:doctor'), async (req, res) => {
   try {
     const resp = await axios.get('/profile/doctor/inactivePatients', {
@@ -301,7 +313,18 @@ app.get('/inactive', keycloak.protect('realm:doctor'), async (req, res) => {
     res.send({ ...resp.data })
   } catch (err) {
     console.log(err)
-    res.send(err)
+    handleError(req, res, err)
+  }
+})
+
+//TODO: This endpoint is the same as the one above but with fixed path
+app.get('/profile/doctor/inactivePatients', keycloak.protect('realm:doctor'), async (req, res) => {
+  try {
+    const resp = await axios.get('/profile/doctor/inactivePatients', {
+      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+    })
+    res.send({ ...resp.data })
+  } catch (err) {
     handleError(req, res, err)
   }
 })
