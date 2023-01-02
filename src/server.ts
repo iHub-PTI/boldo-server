@@ -132,7 +132,8 @@ app.get('/login', keycloak.protect(), (req, res) => {
 // Protected Routes for managing profile information
 // GET /profile/doctor - Read doctor details
 // POST /profile/doctor - Update doctor details
-// 
+// GET /profile/doctor/organizations - list the organizations the doctor is associated with
+//
 
 app.get('/profile/doctor', keycloak.protect('realm:doctor'), async (req, res) => {
   try {
@@ -177,6 +178,17 @@ app.post(
     }
   }
 )
+
+app.get('/profile/doctor/organizations', keycloak.protect('realm:doctor'), async (req, res) => {
+  if (!validate(req, res)) return
+  try {
+    const resp = await axios.get(`/profile/doctor/organizations`, 
+    { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    res.status(resp.status).send(resp.data)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
 
 //
 // RELATED ENCOUNTERS
@@ -589,6 +601,8 @@ app.put('/profile/patient/inactivate/caretaker/:id', keycloak.protect('realm:pat
 // POST /profile/caretaker/dependent/s3/validateDocument/idCardParaguay/side2/validate?hash=${hash}
 // GET /profile/caretaker/dependent/s4/validateSelfie/uploadPresigned?hash=${hash}
 // POST /profile/caretaker/dependent/s4/validateSelfie/validate?hash=${hash}
+// GET /profile/caretaker/dependent/qrcode/decode?qr=${qrCode} - Decode QR code of dependent patient
+// POST /profile/caretaker/dependent/add/qrcode?qr=${qrCode} - Add dependent patient by QR code
 
 app.get('/profile/caretaker/dependents', keycloak.protect('realm:patient'), async (req, res) => {
   try {
@@ -731,6 +745,27 @@ app.post('/profile/caretaker/dependent/s4/validateSelfie/validate', query('hash'
   }
 });
 
+app.get('/profile/caretaker/dependent/qrcode/decode', query('qr').isString().notEmpty(), keycloak.protect('realm:patient'), async (req, res) => {
+  const { qr } = req.query as any
+  try {
+    const resp = await axios.get(`/profile/caretaker/qrcode/decode?qr=${qr}`, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    res.status(resp.status).send(resp.data)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+});
+
+app.post('/profile/caretaker/dependent/add/qrcode', query('qr').isString().notEmpty(), keycloak.protect('realm:patient'), async (req, res) => {
+  const payload = req.body
+  const { qr } = req.query as any
+  try {
+    const resp = await axios.post(`/profile/caretaker/dependent/add/qrcode?qr=${qr}`, payload, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    res.status(resp.status).send(resp.data)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+});
+
 //
 // MEDICATIONS:
 //
@@ -759,6 +794,7 @@ app.get('/profile/doctor/medications', query('content').isString().optional(), k
 // Protected routes for managing encounters
 // PUT /profile/doctor/appointments/:id/encounter - Update the encounter
 // GET /profile/doctor/appointments/:id/encounter - Get the encounter
+// GET /profile/doctor/appointments/:id/encounter/prescription/pdf - Prints PDF from Prescription inside Encounter by appointmentID
 //
 
 app.put('/profile/doctor/appointments/:id/encounter', keycloak.protect('realm:doctor'), async (req, res) => {
@@ -785,6 +821,30 @@ app.get('/profile/doctor/appointments/:id/encounter', keycloak.protect('realm:do
       headers: { Authorization: `Bearer ${getAccessToken(req)}` },
     })
     res.send({ encounter: response.data })
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
+
+app.get('/profile/doctor/appointments/:id/encounter/prescription/pdf', keycloak.protect('realm:doctor'), async (req, res) => {
+  if (!validate(req, res)) return
+  const { id } = req.params
+
+  try {
+    const response = await axios.get(`/profile/doctor/appointments/${id}/encounter/prescription/pdf`, {
+      responseType: 'arraybuffer',
+      headers: {
+        Authorization: `Bearer ${getAccessToken(req)}`,
+        'Content-Type': 'application/json',
+        'Accept': 'application/pdf'
+      },
+    })
+    let filename = response.headers['content-disposition'].split('filename="')[1].split('.')[0] //obtains file name from header
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename=${filename}.pdf`);
+    res.setHeader('Content-Length', response.data.length)
+    res.end(response.data)
   } catch (err) {
     handleError(req, res, err)
   }
@@ -1504,6 +1564,8 @@ app.get(
 // GET /profile/patient/diagnosticReports - Read diagnostic reports of Patient
 // GET /profile/patient/diagnosticReports/:id - Read diagnostic report of Patient by id
 // POST /profile/patient/diagnosticReport - Create diagnostic report from Patient profile
+// POST /profile/patient/qrcode/generate - QR code generate from Patient profile
+
 app.get('/profile/patient/diagnosticReports', keycloak.protect('realm:patient'), async (req, res) => {
   try {
     const resp = await axios.get('/profile/patient/diagnosticReports', { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
@@ -1538,6 +1600,15 @@ app.post('/profile/patient/diagnosticReport', keycloak.protect('realm:patient'),
     handleError(req, res, err)
   }
 })
+
+app.post('/profile/patient/qrcode/generate', keycloak.protect('realm:patient'), async (req, res) => {
+  try {
+    const resp = await axios.post('/profile/patient/qrcode/generate', {}, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    res.status(resp.status).send(resp.data)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+});
 
 // DIAGNOSTIC REPORTS for DEPENDENTS:
 // GET /profile/caretaker/dependent/:id/diagnosticReports - Read diagnostic reports of Patient
@@ -1615,8 +1686,8 @@ app.get('/specializations', async (req, res) => {
 })
 
 //
-//ENDPOINT FOR ADMIN
-//this endpoint calls the archiveAppointments script.
+//ENDPOINTS FOR ADMIN
+//POST /profile/admin/archiveAppointments - calls the archiveAppointments script.
 app.post('/profile/admin/archiveAppointments', keycloak.protect('realm:admin'), async (req, res) => {
   try {
     const toReturn = await archiveAppointments()
@@ -1638,6 +1709,26 @@ app.post('/profile/admin/farmanuario/synchronize', keycloak.protect('realm:admin
   }
 })
 
+//
+// REPORTS [open endpoint]
+// GET /reports/:report_identifier - Prescription verification URL
+app.get('/reports/:id',
+    param('id').isNumeric(),
+    query('verification_code').isString(),
+    async (req:express.Request, res:express.Response) => {
+  if (!validate(req, res)){ return }
+
+  const { id:reportId } = req.params
+  const { verification_code: verificationCode } = req.query
+
+  try {
+    const response = await axios.get(`/reports/${reportId}?verification_code=${verificationCode}`)
+    res.set('Content-Type', 'text/html');
+    res.end(response.data)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
 
 //
 //
