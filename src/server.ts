@@ -558,9 +558,10 @@ app.get('/profile/patient/organizations', keycloak.protect('realm:patient'), asy
 
 //
 // PATIENT PROFILE (AS DEPENDENT)
-// GET /profile/patient/caretakers
+// GET /profile/patient/caretakers 
 // PUT /profile/patient/inactivate/caretaker/:id
-//
+// GET /profile/caretaker/dependent/:is/organizations - list of organizations to which a dependent has subscribed
+
 app.get('/profile/patient/caretakers', keycloak.protect('realm:patient'), async (req, res) => {
   try {
     const resp = await axios.get('/profile/patient/caretakers', { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
@@ -575,6 +576,16 @@ app.put('/profile/patient/inactivate/caretaker/:id', keycloak.protect('realm:pat
   const { id } = req.params
   try {
     const resp = await axios.put(`/profile/patient/inactivate/caretaker/${id}`, payload, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    res.status(resp.status).send(resp.data)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
+
+app.get('/profile/caretaker/dependent/:idDependent/organizations', keycloak.protect('realm:patient'), async (req, res) => {
+  const { idDependent } = req.params
+  try {
+    const resp = await axios.get(`/profile/caretaker/dependent/${idDependent}/organizations`, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
     res.status(resp.status).send(resp.data)
   } catch (err) {
     handleError(req, res, err)
@@ -1383,10 +1394,11 @@ app.post(
   body('doctorId').isString(),
   body('start').isISO8601(),
   body('appointmentType').isString(), 
+  body('organizationId').isString(), 
   async (req, res) => {
     if (!validate(req, res)) return
     const { id } = req.params
-    const { start, doctorId,appointmentType } = req.body
+    const { start, doctorId,appointmentType,organizationId } = req.body
     if (!["V","A"].includes(appointmentType)) res.status(400).send({ message: "Appointmente type must be Virtual (V) or Ambulatory (A)" })
     const startDate = new Date(start)
     const endDate = new Date(start)
@@ -1407,7 +1419,7 @@ app.post(
 
       const resp = await axios.post(
         `/profile/caretaker/dependent/${id}/appointments`,
-        { doctorId, start, end: endDate.toISOString(),appointmentType },
+        { doctorId, start, end: endDate.toISOString(),appointmentType,organizationId },
         {
           headers: { Authorization: `Bearer ${getAccessToken(req)}` },
         }
@@ -1615,14 +1627,14 @@ app.post('/profile/caretaker/dependent/:id/diagnosticReport', keycloak.protect('
 //
 // MANAGE organizations:
 // Routes for managing organizations of Boldo Multi Organization (BMO)
-// POST /profile/organization-manager/Organization - create a BMO organization
-// GET /profile/organization-manager/Organization - obtaint a list of BMO organizations
+// POST /profile/organization-manager/organization - create a BMO organization
+// GET /profile/organization-manager/organization - obtaint a list of BMO organizations
  
 
-app.post('/profile/organization-manager/Organization', keycloak.protect('realm:organization_manager'), async (req, res) => {
+app.post('/profile/organization-manager/organization', keycloak.protect('realm:organization_manager'), async (req, res) => {
   const payload = req.body
   try {
-    const resp =  await axios.post('/profile/organization-manager/Organization', payload, {
+    const resp =  await axios.post('/profile/organization-manager/organization', payload, {
       headers: { Authorization: `Bearer ${getAccessToken(req)}` },
     })
     res.status(resp.status).send(resp.data)
@@ -1631,9 +1643,9 @@ app.post('/profile/organization-manager/Organization', keycloak.protect('realm:o
   }
 })
 
-app.get('/profile/organization-manager/Organization', keycloak.protect('realm:organization_manager'), async (req, res) => {
+app.get('/profile/organization-manager/organization', keycloak.protect('realm:organization_manager'), async (req, res) => {
   try {
-    const resp = await axios.get(`/profile/organization-manager/Organization`, 
+    const resp = await axios.get(`/profile/organization-manager/organization`, 
     { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
     res.status(resp.status).send(resp.data)
   } catch (err) {
@@ -1644,14 +1656,14 @@ app.get('/profile/organization-manager/Organization', keycloak.protect('realm:or
 //
 // MANAGE PractitionerRole:
 // Routes for managing relation among doctors and organizations
-// POST /profile/organization-manager/DoctorRole - create a relation among doctor and organization 
-// GET /profile/organization-manager/DoctorRole - list relation among doctor and organizations
+// POST /profile/organization-manager/doctorRole - create a relation among doctor and organization 
+// GET /profile/organization-manager/doctorRole - list relation among doctor and organizations
 //
 
-app.post('/profile/organization-manager/DoctorRole', keycloak.protect('realm:organization_manager'), async (req, res) => {
+app.post('/profile/organization-manager/doctorRole', keycloak.protect('realm:organization_manager'), async (req, res) => {
   const payload = req.body
   try {
-    const resp =  await axios.post('/profile/organization-manager/DoctorRole', payload, {
+    const resp =  await axios.post('/profile/organization-manager/doctorRole', payload, {
       headers: { Authorization: `Bearer ${getAccessToken(req)}` },
     })
     res.status(resp.status).send(resp.data)
@@ -1660,9 +1672,9 @@ app.post('/profile/organization-manager/DoctorRole', keycloak.protect('realm:org
   }
 })
 
-app.get('/profile/organization-manager/DoctorRole', keycloak.protect('realm:organization_manager'), async (req, res) => {
+app.get('/profile/organization-manager/doctorRole', keycloak.protect('realm:organization_manager'), async (req, res) => {
   try {
-    const resp = await axios.get(`/profile/organization-manager/DoctorRole`, 
+    const resp = await axios.get(`/profile/organization-manager/doctorRole`, 
     { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
     res.status(resp.status).send(resp.data)
   } catch (err) {
