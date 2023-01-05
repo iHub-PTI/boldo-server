@@ -138,39 +138,40 @@ app.get('/login', keycloak.protect(), (req, res) => {
 app.get('/profile/doctor', keycloak.protect('realm:doctor'), async (req, res) => {
   try {
     const doctor = await Doctor.findById(req.userId)
-    const openHours = doctor?.openHours || { mon: [], tue: [], wed: [], thu: [], fri: [], sat: [], sun: [] }
+    //const openHours = doctor?.openHours || { mon: [], tue: [], wed: [], thu: [], fri: [], sat: [], sun: [] }
+    const blocks = doctor?.blocks || [];
     console.log(`Bearer ${getAccessToken(req)}`)
     const resp = await axios.get('/profile/doctor', { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
 
-    res.send({ ...resp.data, openHours, new: !doctor })
+    res.send({ ...resp.data, blocks, new: !doctor })
   } catch (err) {
     console.log(err)
     handleError(req, res, err)
   }
 })
 
-app.post(
+app.put(
   '/profile/doctor',
   keycloak.protect('realm:doctor'),
   body([
-    'openHours.mon',
-    'openHours.tue',
-    'openHours.wed',
-    'openHours.thu',
-    'openHours.fri',
-    'openHours.sat',
-    'openHours.sun',
+    'blocks',
+    'blocks.*.openHours.mon',
+    'blocks.*.openHours.tue',
+    'blocks.*.openHours.wed',
+    'blocks.*.openHours.thu',
+    'blocks.*.openHours.fri',
+    'blocks.*.openHours.sat',
+    'blocks.*.openHours.sun',
   ]).isArray(),
   body(['openHours.*.*.start', 'openHours.*.*.end']).isInt().toInt(),
   async (req, res) => {
     if (!validate(req, res)) return
 
-    const { openHours, ...ihubPayload } = req.body
-
+    const { blocks, ...ihubPayload } = req.body
+    
     try {
       const resp = await axios.get('/profile/doctor', { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
-      await Doctor.findOneAndUpdate({ _id: req.userId, id: resp.data.id }, { openHours } ,{ upsert: true, runValidators: true })
-
+      await Doctor.findOneAndUpdate({ _id: req.userId, id: resp.data.id }, { blocks } ,{ upsert: true, runValidators: true })
       await axios.put('/profile/doctor', ihubPayload, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
       res.sendStatus(200)
     } catch (err) {

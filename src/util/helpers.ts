@@ -7,7 +7,7 @@ import jwt from 'jsonwebtoken'
 import { createLoginUrl } from './kc-helpers'
 import calculateOpenIntervals from '../worker/getOpenIntervals'
 import Appointment from '../models/Appointment'
-import Doctor, { IDoctor } from '../models/Doctor'
+import Doctor, { IDoctor, OpenHour } from '../models/Doctor'
 import { ICoreAppointment } from '../models/CoreAppointment'
 
 export type Interval = [number, number]
@@ -50,7 +50,7 @@ export const calculateAvailability = async (doctorId: string, start: Date, end: 
     const blockedIntervals = [...boldoAppointments, ...iHubAppointments] as Interval[]
 
     // Expand openingHours to intervals
-    const openHourDates = calculateOpenHours(doctor.openHours, start, end) as unknown as [number,number,string][]
+    const openHourDates = calculateOpenHours(doctor.blocks[0].openHours, start, end) as unknown as [number,number,string][]
 
     // Calcualte availability intervals
     const openIntervals = await calculateOpenIntervals({base:openHourDates, substract:blockedIntervals}) as [number,number,string][]
@@ -84,12 +84,12 @@ export const calculateAvailability = async (doctorId: string, start: Date, end: 
   }
 }
 
-const calculateOpenHours = (openHours: IDoctor['openHours'], start: Date, end: Date) => {
+const calculateOpenHours = (openHours: OpenHour, start: Date, end: Date) => {
   // Create list of days
   const days = differenceInDays(end, start)
   const daysList = [...Array(days + 1).keys()].map(i => addDays(start, i))
   return daysList.flatMap(day => {
-    const dayOfTheWeek = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][day.getDay()] as keyof IDoctor['openHours']
+    const dayOfTheWeek = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][day.getDay()] as keyof OpenHour
     const openHoursOfDay = openHours[dayOfTheWeek]
 
     return openHoursOfDay.map(openHour => {
