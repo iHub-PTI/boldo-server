@@ -170,10 +170,30 @@ app.put(
     const { blocks, ...ihubPayload } = req.body
     
     try {
-      const resp = await axios.get('/profile/doctor', { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
-      await Doctor.findOneAndUpdate({ _id: req.userId, id: resp.data.id }, { blocks } ,{ upsert: true, runValidators: true })
-      await axios.put('/profile/doctor', ihubPayload, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
-      res.sendStatus(200)
+      //get all doctor workspaces
+      const organization = await axios.get('/profile/doctor/organizations', { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+      let update = true;
+      // validations and controls
+      if (organization.data) {
+        let isSuscribed = false;
+        blocks.forEach((element: any) => {
+          isSuscribed = organization.data.some((org: any) => org.id == element.idOrganization)  
+          if (!isSuscribed) {
+            update = false;
+            res.status(400).send({ message: "The doctor has no workspace: "+element.idOrganization });
+          }
+        });
+      } else {
+        update = false;
+        res.status(400).send({ message: "The doctor has no workspace" });
+      }
+
+      if (update) {
+        const resp = await axios.get('/profile/doctor', { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+        await Doctor.findOneAndUpdate({ _id: req.userId, id: resp.data.id }, { blocks } ,{ upsert: true, runValidators: true })
+        await axios.put('/profile/doctor', ihubPayload, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+        res.sendStatus(200)
+      }    
     } catch (err) {
       handleError(req, res, err)
     }
