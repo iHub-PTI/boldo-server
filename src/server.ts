@@ -1762,7 +1762,7 @@ app.post('/profile/caretaker/dependent/:id/diagnosticReport', keycloak.protect('
 // Routes for managing organizations of Boldo Multi Organization (BMO)
 // POST /profile/organization-manager/organization - create a BMO organization
 // GET /profile/organization-manager/organization - obtaint a list of BMO organizations
- 
+// GET /organizations  - obtaint a list of BMO organizations
 
 app.post('/profile/organization-manager/organization', keycloak.protect('realm:organization_manager'), async (req, res) => {
   const payload = req.body
@@ -1780,6 +1780,16 @@ app.get('/profile/organization-manager/organization', keycloak.protect('realm:or
   try {
     const resp = await axios.get(`/profile/organization-manager/organization`, 
     { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    res.status(resp.status).send(resp.data)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
+
+app.get('/organizations', async (req, res) => {
+  const {  include } = req.query
+  try {
+    const resp = await axios.get(`/organizations${include ? `?include=${include}` : ''}`)
     res.status(resp.status).send(resp.data)
   } catch (err) {
     handleError(req, res, err)
