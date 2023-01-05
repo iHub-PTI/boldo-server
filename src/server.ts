@@ -138,12 +138,12 @@ app.get('/login', keycloak.protect(), (req, res) => {
 app.get('/profile/doctor', keycloak.protect('realm:doctor'), async (req, res) => {
   try {
     const doctor = await Doctor.findById(req.userId)
-    //const openHours = doctor?.openHours || { mon: [], tue: [], wed: [], thu: [], fri: [], sat: [], sun: [] }
     const blocks = doctor?.blocks || [];
     console.log(`Bearer ${getAccessToken(req)}`)
     const resp = await axios.get('/profile/doctor', { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
-
-    res.send({ ...resp.data, blocks, new: !doctor })
+    const organization = await axios.get('/profile/doctor/organizations', { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    
+    res.send({ ...resp.data, workspace: organization.data, blocks, new: !doctor })
   } catch (err) {
     console.log(err)
     handleError(req, res, err)
