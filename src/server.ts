@@ -1392,7 +1392,7 @@ app.post(
     if (startDate < now) return res.status(400).send({ message: "'start' has to be at least "+ process.env.APPOINTMENT_WAIT_RESERVATION_LENGTH +" minutes in the future" })
 
     try {
-      const availabilities = await calculateAvailability(doctorId, startDate, endDate)
+      const availabilities = await calculateAvailability(doctorId, organizationId, startDate, endDate)
       const available = availabilities.map(av => Date.parse(av["availability"])).includes(Date.parse(start))
       if (!available) return res.status(400).send({ message: 'timeslot is not available for booking' })
       const isAppType = availabilities.filter(av => Date.parse(av["availability"]) == Date.parse(start) && av["appointmentType"].includes(appointmentType)).length > 0
@@ -1531,7 +1531,7 @@ app.post(
     if (startDate < now) return res.status(400).send({ message: "'start' has to be at least "+process.env.APPOINTMENT_WAIT_RESERVATION_LENGTH+ " minutes in the future" })
 
     try {
-      const availabilities = await calculateAvailability(doctorId, startDate, endDate)
+      const availabilities = await calculateAvailability(doctorId, organizationId, startDate, endDate)
       const available = availabilities.map(av => Date.parse(av["availability"])).includes(Date.parse(start))
       if (!available) return res.status(400).send({ message: 'timeslot is not available for booking' })
       const isAppType = availabilities.filter(av => Date.parse(av["availability"]) == Date.parse(start) && av["appointmentType"].includes(appointmentType)).length > 0
@@ -1602,7 +1602,7 @@ app.get('/doctors', async (req, res) => {
     const doctorsWithNextAvailability = await Promise.all(
       doctorsIHub.map(async doctor => ({
         ...doctor,
-        nextAvailability: await calculateNextAvailability(doctor.id),
+        nextAvailability: await calculateNextAvailability(doctor.id,doctor.organizationId),
       }))
     )
 
@@ -1625,16 +1625,17 @@ app.get(
   '/doctors/:id/availability',
   param('id').isString(),
   query(['start', 'end']).isISO8601(),
+  query(['organizationIdList']).isString(),
   async (req: express.Request, res: express.Response) => {
     if (!validate(req, res)) return
 
-    const { start, end } = req.query
+    const { start, end, organizationIdList } = req.query
     const { id: doctorId } = req.params
 
     try {
       let startDate = new Date(start as string)
       let endDate = new Date(end as string)
-
+      let organizationIds = organizationIdList as string
       const now = new Date()
       now.setMilliseconds(now.getMilliseconds() + APPOINTMENT_WAIT_RESERVATION_LENGTH)
 
@@ -1647,8 +1648,8 @@ app.get(
         endDate.setDate(endDate.getDate() + 31)
       }
 
-      const availabilities = await calculateAvailability(doctorId, startDate, endDate)
-      const nextAvailability = await calculateNextAvailability(doctorId)
+      const availabilities = await calculateAvailability(doctorId, organizationIds , startDate, endDate)
+      const nextAvailability = await calculateNextAvailability(doctorId,organizationIds)
 
       // FIXME: nextAvailability is runing the whole loop again.
       // Could be done in one loop in the case that start = now

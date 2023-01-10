@@ -16,7 +16,7 @@ export const APPOINTMENT_LENGTH = Number(process.env.APPOINTMENT_LENGTH) /**minu
 export const APPOINTMENT_WAIT_RESERVATION_LENGTH = Number(process.env.APPOINTMENT_WAIT_RESERVATION_LENGTH) /**minutes in milliseconds*/ * 1000 * 60
 
 
-export const calculateAvailability = async (doctorId: string, start: Date, end: Date) => {
+export const calculateAvailability = async (doctorId: string, organizationId: string, start: Date, end: Date) => {
 
   //we must check all the blocked intervals from the start and end day during the appointments queries
   let newStart = new Date(start);
@@ -38,7 +38,7 @@ export const calculateAvailability = async (doctorId: string, start: Date, end: 
     // FIX MAY NOT BE REQUIRED ANYMORE, SINCE NOW ALL APPOINTMENTS STARTING FROM 00:00 HS ARE CONSIDERED
     // MOREOVER THERE ARE NOT APPOINTMENTS THAT START IN ONE DAY AND END IN THE NEXT ONE
     const resp = await axios.get<iHub.Appointment[]>(
-      `/appointments?doctors=${doctorId}&start=${newStart.toISOString()}&end=${newEnd.toISOString()}&status=Booked`
+      `/appointments?doctors=${doctorId}&organizations=${organizationId}&start=${newStart.toISOString()}&end=${newEnd.toISOString()}&status=Booked`
     )
 
     // Get the doctors other appointments
@@ -106,17 +106,17 @@ const calculateOpenHours = (openHours: IDoctor['openHours'], start: Date, end: D
   })
 }
 
-export const calculateNextAvailability = async (doctorId: string) => {
+export const calculateNextAvailability = async (doctorId: string, organizationId: string) => {
   const startDate = new Date()
   startDate.setMilliseconds(startDate.getMilliseconds() + APPOINTMENT_WAIT_RESERVATION_LENGTH)
   const endDate = new Date(startDate)
   endDate.setDate(endDate.getDate() + 7)
-  const availabilitiesWeek = await calculateAvailability(doctorId, startDate, endDate)
+  const availabilitiesWeek = await calculateAvailability(doctorId, organizationId, startDate, endDate)
   if (availabilitiesWeek.length > 0) return availabilitiesWeek[0]
 
   startDate.setDate(startDate.getDate() + 7)
   endDate.setDate(endDate.getDate() + 24)
-  const availabilitiesMonth = await calculateAvailability(doctorId, startDate, endDate)
+  const availabilitiesMonth = await calculateAvailability(doctorId, organizationId, startDate, endDate)
 
   if (availabilitiesMonth.length > 0) return availabilitiesMonth[0]
   return null
