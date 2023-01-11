@@ -12,6 +12,7 @@ export interface IAppointment extends Document {
   description: string
   doctorId: string
   type: 'PrivateEvent'
+  idOrganization: String
 }
 
 const AppointmentSchema: Schema = new Schema(
@@ -24,6 +25,7 @@ const AppointmentSchema: Schema = new Schema(
     description: String,
     doctorId: { type: String, required: true },
     type: { type: String, enum: ['PrivateEvent'], required: true },
+    idOrganization: { type: String, required: true }
   },
   {
     timestamps: true,

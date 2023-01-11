@@ -7,7 +7,7 @@ import jwt from 'jsonwebtoken'
 import { createLoginUrl } from './kc-helpers'
 import calculateOpenIntervals from '../worker/getOpenIntervals'
 import Appointment from '../models/Appointment'
-import Doctor, { IDoctor } from '../models/Doctor'
+import Doctor, { IDoctor, OpenHour } from '../models/Doctor'
 import { ICoreAppointment } from '../models/CoreAppointment'
 
 export type Interval = [number, number]
@@ -16,7 +16,7 @@ export const APPOINTMENT_LENGTH = Number(process.env.APPOINTMENT_LENGTH) /**minu
 export const APPOINTMENT_WAIT_RESERVATION_LENGTH = Number(process.env.APPOINTMENT_WAIT_RESERVATION_LENGTH) /**minutes in milliseconds*/ * 1000 * 60
 
 
-export const calculateAvailability = async (doctorId: string, start: Date, end: Date) => {
+export const calculateAvailability = async (doctorId: string, idOrganization: string, start: Date, end: Date, accessToken: string) => {
 
   //we must check all the blocked intervals from the start and end day during the appointments queries
   let newStart = new Date(start);
@@ -28,9 +28,16 @@ export const calculateAvailability = async (doctorId: string, start: Date, end: 
 
   try {
     // Get the doctor._id and opening hours
-    const doctor = await Doctor.findOne({ id: doctorId })
+    const doctor = await Doctor.findOne(
+      { id: doctorId, "blocks.idOrganization": idOrganization }
+    )
     if (!doctor) return []
 
+    const config = doctor.blocks.find(b => b.idOrganization == idOrganization);
+    if (!config) return [];
+
+    console.log(newStart.toISOString());
+    console.log(newEnd.toISOString());
     // Get all the FHIR appointments
 
     // (Deprecated) FIXME: There is an issue with FHIR not returning events that start before the startDate but end after the start date.
@@ -38,11 +45,12 @@ export const calculateAvailability = async (doctorId: string, start: Date, end: 
     // FIX MAY NOT BE REQUIRED ANYMORE, SINCE NOW ALL APPOINTMENTS STARTING FROM 00:00 HS ARE CONSIDERED
     // MOREOVER THERE ARE NOT APPOINTMENTS THAT START IN ONE DAY AND END IN THE NEXT ONE
     const resp = await axios.get<iHub.Appointment[]>(
-      `/appointments?doctors=${doctorId}&start=${newStart.toISOString()}&end=${newEnd.toISOString()}&status=Booked`
+      `/profile/patient/appointments?calculateAvailability=true&doctors=${doctorId}&organizations=${idOrganization}&start=${newStart.toISOString()}&end=${newEnd.toISOString()}&status=Booked`,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
     )
 
     // Get the doctors other appointments
-    const appointments = await Appointment.find({ doctorId: doctor._id, end: { $gt: newStart }, start: { $lt: newEnd } })
+    const appointments = await Appointment.find({ doctorId: doctor._id, end: { $gt: newStart }, start: { $lt: newEnd }, idOrganization: idOrganization })
 
     // Transforming the data
     const iHubAppointments = resp.data.map(appointment => [Date.parse(appointment.start), Date.parse(appointment.end)])
@@ -50,11 +58,11 @@ export const calculateAvailability = async (doctorId: string, start: Date, end: 
     const blockedIntervals = [...boldoAppointments, ...iHubAppointments] as Interval[]
 
     // Expand openingHours to intervals
-    const openHourDates = calculateOpenHours(doctor.openHours, start, end) as unknown as [number,number,string][]
-
+    const openHourDates = calculateOpenHours(config.openHours, start, end) as unknown as [number,number,string][]
+    
     // Calcualte availability intervals
     const openIntervals = await calculateOpenIntervals({base:openHourDates, substract:blockedIntervals}) as [number,number,string][]
-    
+
     // Slize availabilities into junks of appointment lengths
     const availabilities = openIntervals
       .flatMap(interval => {
@@ -84,12 +92,12 @@ export const calculateAvailability = async (doctorId: string, start: Date, end: 
   }
 }
 
-const calculateOpenHours = (openHours: IDoctor['openHours'], start: Date, end: Date) => {
+const calculateOpenHours = (openHours: OpenHour, start: Date, end: Date) => {
   // Create list of days
   const days = differenceInDays(end, start)
   const daysList = [...Array(days + 1).keys()].map(i => addDays(start, i))
   return daysList.flatMap(day => {
-    const dayOfTheWeek = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][day.getDay()] as keyof IDoctor['openHours']
+    const dayOfTheWeek = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][day.getDay()] as keyof OpenHour
     const openHoursOfDay = openHours[dayOfTheWeek]
 
     return openHoursOfDay.map(openHour => {
@@ -106,17 +114,17 @@ const calculateOpenHours = (openHours: IDoctor['openHours'], start: Date, end: D
   })
 }
 
-export const calculateNextAvailability = async (doctorId: string) => {
+export const calculateNextAvailability = async (doctorId: string, idOrganization: string, accessToken: string) => {
   const startDate = new Date()
   startDate.setMilliseconds(startDate.getMilliseconds() + APPOINTMENT_WAIT_RESERVATION_LENGTH)
   const endDate = new Date(startDate)
   endDate.setDate(endDate.getDate() + 7)
-  const availabilitiesWeek = await calculateAvailability(doctorId, startDate, endDate)
+  const availabilitiesWeek = await calculateAvailability(doctorId, idOrganization, startDate, endDate, accessToken)
   if (availabilitiesWeek.length > 0) return availabilitiesWeek[0]
 
   startDate.setDate(startDate.getDate() + 7)
   endDate.setDate(endDate.getDate() + 24)
-  const availabilitiesMonth = await calculateAvailability(doctorId, startDate, endDate)
+  const availabilitiesMonth = await calculateAvailability(doctorId, idOrganization, startDate, endDate, accessToken)
 
   if (availabilitiesMonth.length > 0) return availabilitiesMonth[0]
   return null

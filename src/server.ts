@@ -138,41 +138,62 @@ app.get('/login', keycloak.protect(), (req, res) => {
 app.get('/profile/doctor', keycloak.protect('realm:doctor'), async (req, res) => {
   try {
     const doctor = await Doctor.findById(req.userId)
-    const openHours = doctor?.openHours || { mon: [], tue: [], wed: [], thu: [], fri: [], sat: [], sun: [] }
+    const blocks = doctor?.blocks || [];
     console.log(`Bearer ${getAccessToken(req)}`)
     const resp = await axios.get('/profile/doctor', { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    const organization = await axios.get('/profile/doctor/organizations', { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
 
-    res.send({ ...resp.data, openHours, new: !doctor })
+    res.send({ ...resp.data, workspace: organization.data, blocks, new: !doctor })
   } catch (err) {
     console.log(err)
     handleError(req, res, err)
   }
 })
 
-app.post(
+app.put(
   '/profile/doctor',
   keycloak.protect('realm:doctor'),
   body([
-    'openHours.mon',
-    'openHours.tue',
-    'openHours.wed',
-    'openHours.thu',
-    'openHours.fri',
-    'openHours.sat',
-    'openHours.sun',
+    'blocks',
+    'blocks.*.openHours.mon',
+    'blocks.*.openHours.tue',
+    'blocks.*.openHours.wed',
+    'blocks.*.openHours.thu',
+    'blocks.*.openHours.fri',
+    'blocks.*.openHours.sat',
+    'blocks.*.openHours.sun',
   ]).isArray(),
   body(['openHours.*.*.start', 'openHours.*.*.end']).isInt().toInt(),
   async (req, res) => {
     if (!validate(req, res)) return
 
-    const { openHours, ...ihubPayload } = req.body
+    const { blocks, ...ihubPayload } = req.body
 
     try {
-      const resp = await axios.get('/profile/doctor', { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
-      await Doctor.findOneAndUpdate({ _id: req.userId, id: resp.data.id }, { openHours } ,{ upsert: true, runValidators: true })
+      //get all doctor workspaces
+      const organization = await axios.get('/profile/doctor/organizations', { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+      let update = true;
+      // validations and controls
+      if (organization.data) {
+        let isSuscribed = false;
+        blocks.forEach((element: any) => {
+          isSuscribed = organization.data.some((org: any) => org.id == element.idOrganization)
+          if (!isSuscribed) {
+            update = false;
+            res.status(400).send({ message: "The doctor has no workspace: "+element.idOrganization });
+          }
+        });
+      } else {
+        update = false;
+        res.status(400).send({ message: "The doctor has no workspace" });
+      }
 
-      await axios.put('/profile/doctor', ihubPayload, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
-      res.sendStatus(200)
+      if (update) {
+        const resp = await axios.get('/profile/doctor', { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+        await Doctor.findOneAndUpdate({ _id: req.userId, id: resp.data.id }, { blocks } ,{ upsert: true, runValidators: true })
+        await axios.put('/profile/doctor', ihubPayload, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+        res.sendStatus(200)
+      }
     } catch (err) {
       handleError(req, res, err)
     }
@@ -182,8 +203,8 @@ app.post(
 app.get('/profile/doctor/organizations', keycloak.protect('realm:doctor'), async (req, res) => {
   if (!validate(req, res)) return
   try {
-    const resp = await axios.get(`/profile/doctor/organizations`, 
-    { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    const resp = await axios.get(`/profile/doctor/organizations`,
+      { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
     res.status(resp.status).send(resp.data)
   } catch (err) {
     handleError(req, res, err)
@@ -391,7 +412,7 @@ app.delete(
       const headers = {
         Authorization: `Bearer ${getAccessToken(req)}`,
       }
-  
+
       const response = await axios.delete(
         `/profile/doctor/encounters/${encounterId}/privateComments/${privateCommentId}`,
         { headers }
@@ -414,8 +435,8 @@ app.get('/profile/doctor/diagnosticReports', keycloak.protect('realm:doctor'), a
   if (!validate(req, res)) return
   try {
     console.log(`/profile/doctor/diagnosticReports?patient_id=${req.query.patient_id}${req.query.page ? `&page=${req.query.page}` : ''}${req.query.count ? `&count=${req.query.count}` : ''}${req.query.category ? `&category=${req.query.category}` : ''}${req.query.dateOrder ? `&dateOrder=${req.query.dateOrder}` : ''}`)
-    const resp = await axios.get(`/profile/doctor/diagnosticReports?patient_id=${req.query.patient_id}${req.query.page ? `&page=${req.query.page}` : ''}${req.query.count ? `&count=${req.query.count}` : ''}${req.query.category ? `&category=${req.query.category}` : ''}${req.query.dateOrder ? `&dateOrder=${req.query.dateOrder}` : ''}`, 
-    { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    const resp = await axios.get(`/profile/doctor/diagnosticReports?patient_id=${req.query.patient_id}${req.query.page ? `&page=${req.query.page}` : ''}${req.query.count ? `&count=${req.query.count}` : ''}${req.query.category ? `&category=${req.query.category}` : ''}${req.query.dateOrder ? `&dateOrder=${req.query.dateOrder}` : ''}`,
+      { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
     res.status(resp.status).send(resp.data)
   } catch (err) {
     handleError(req, res, err)
@@ -425,8 +446,8 @@ app.get('/profile/doctor/diagnosticReports', keycloak.protect('realm:doctor'), a
 app.get('/profile/doctor/diagnosticReport/:id', keycloak.protect('realm:doctor'), async (req, res) => {
   const { id } = req.params
   try {
-    const resp = await axios.get(`/profile/doctor/diagnosticReport/${id}`, 
-    { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    const resp = await axios.get(`/profile/doctor/diagnosticReport/${id}`,
+      { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
     res.status(resp.status).send(resp.data)
   } catch (err) {
     handleError(req, res, err)
@@ -453,7 +474,7 @@ app.post('/profile/doctor/diagnosticReport', keycloak.protect('realm:doctor'), a
 // GET /profile/doctor/studyOrderTemplate - obtaint a list of study order templates
 // PUT /profile/doctor/studyOrderTemplate/:id - update a a study order template
 // PUT /profile/doctor/studyOrderTemplate/inactivate/:id - inactivate a study order template
- 
+
 app.post('/profile/doctor/serviceRequest', keycloak.protect('realm:doctor'), async (req, res) => {
   const payload = req.body
   try {
@@ -480,8 +501,8 @@ app.post('/profile/doctor/studyOrderTemplate', keycloak.protect('realm:doctor'),
 
 app.get('/profile/doctor/studyOrderTemplate', keycloak.protect('realm:doctor'), async (req, res) => {
   try {
-    const resp = await axios.get(`/profile/doctor/studyOrderTemplate`, 
-    { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    const resp = await axios.get(`/profile/doctor/studyOrderTemplate`,
+      { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
     res.status(resp.status).send(resp.data)
   } catch (err) {
     handleError(req, res, err)
@@ -528,8 +549,8 @@ app.get('/profile/doctor/serviceRequests', keycloak.protect('realm:doctor'), asy
   if (!validate(req, res)) return
   try {
     console.log(`/profile/doctor/serviceRequests?patient_id=${req.query.patient_id}${req.query.page ? `&page=${req.query.page}` : ''}${req.query.count ? `&count=${req.query.count}` : ''}${req.query.category ? `&category=${req.query.category}` : ''}${req.query.dateOrder ? `&dateOrder=${req.query.dateOrder}` : ''}`)
-    const resp = await axios.get(`/profile/doctor/serviceRequests?patient_id=${req.query.patient_id}${req.query.page ? `&page=${req.query.page}` : ''}${req.query.count ? `&count=${req.query.count}` : ''}${req.query.category ? `&category=${req.query.category}` : ''}${req.query.dateOrder ? `&dateOrder=${req.query.dateOrder}` : ''}`, 
-    { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    const resp = await axios.get(`/profile/doctor/serviceRequests?patient_id=${req.query.patient_id}${req.query.page ? `&page=${req.query.page}` : ''}${req.query.count ? `&count=${req.query.count}` : ''}${req.query.category ? `&category=${req.query.category}` : ''}${req.query.dateOrder ? `&dateOrder=${req.query.dateOrder}` : ''}`,
+      { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
     res.status(resp.status).send(resp.data)
   } catch (err) {
     handleError(req, res, err)
@@ -919,28 +940,28 @@ app.get('/profile/doctor/appointments/:id/encounter', keycloak.protect('realm:do
 
 app.get('/profile/doctor/appointments/:id/encounter/reports',
     cors({ origin: AllowedOrigins, credentials: true, exposedHeaders:['Content-Disposition'] }),
-    keycloak.protect('realm:doctor'), async (req, res) => {
-  if (!validate(req, res)) return
-  const { id } = req.params
-  try {
+  keycloak.protect('realm:doctor'), async (req, res) => {
+    if (!validate(req, res)) return
+    const { id } = req.params
+    try {
     const response = await axios.get(`/profile/doctor/appointments/${id}/encounter/reports?${req.query.reports ? `reports=${req.query.reports}`: ''}`, {
-      responseType: 'arraybuffer',
-      headers: {
-        Authorization: `Bearer ${getAccessToken(req)}`,
-        'Content-Type': 'application/json',
-        'Accept': 'application/pdf'
-      },
-    })
-    let filename = response.headers['content-disposition'].split('filename="')[1].split('.')[0] //obtains file name from header
+        responseType: 'arraybuffer',
+        headers: {
+          Authorization: `Bearer ${getAccessToken(req)}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/pdf'
+        },
+      })
+      let filename = response.headers['content-disposition'].split('filename="')[1].split('.')[0] //obtains file name from header
 
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename=${filename}.pdf`);
-    res.setHeader('Content-Length', response.data.length)
-    res.end(response.data)
-  } catch (err) {
-    handleError(req, res, err)
-  }
-})
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename=${filename}.pdf`);
+      res.setHeader('Content-Length', response.data.length)
+      res.end(response.data)
+    } catch (err) {
+      handleError(req, res, err)
+    }
+  })
 
 //
 // Encounter on patient profile
@@ -1121,17 +1142,17 @@ app.get(
           headers: { Authorization: `Bearer ${getAccessToken(req)}` },
         }
       )
-      const { data } = resp  
+      const { data } = resp
       if(Array.isArray(data)){
         const ids = data.map(appointment => appointment.id)
         const coreAppointments = await CoreAppointment.find({ id: { $in: ids } })
-  
+
         let FHIRAppointments = [] as (iHub.Appointment & { type: string; status: ICoreAppointment['status'] })[]
-  
+
         FHIRAppointments = coreAppointments.map(appointment => {
           const FHIRAppointment = data.find(app => app.id === appointment.id)
           if (!FHIRAppointment) throw new Error(`FHIR Appointment must exist but not found for ID: ${appointment.id}!`)
-  
+
           const minutes = differenceInMinutes(parseISO(FHIRAppointment.start as any), Date.now())
           if (minutes < 15 && appointment.status === 'upcoming') {
             return { ...FHIRAppointment, type: 'Appointment', status: 'open' }
@@ -1139,7 +1160,7 @@ app.get(
             return { ...FHIRAppointment, type: 'Appointment', status: appointment.status }
           }
         })
-  
+
         let token = ''
         if (status) {
           FHIRAppointments = FHIRAppointments.filter(appointment => appointment.status === status)
@@ -1148,14 +1169,14 @@ app.get(
             token = createToken(ids, 'doctor')
           }
         }
-  
+
         let appointments = [] as IAppointment[]
         if (!status) appointments = await Appointment.find({ doctorId: req.userId })
         res.status(resp.status).send({ appointments: [...FHIRAppointments, ...appointments], token })
       }else{
         res.status(resp.status).send()
       }
-      
+
 
     } catch (err) {
       handleError(req, res, err)
@@ -1167,6 +1188,7 @@ app.post(
   '/profile/doctor/appointments',
   keycloak.protect('realm:doctor'),
   body('type').isIn(['PrivateEvent']),
+  body('idOrganization').isString(),
   body('name').isString(),
   body(['start', 'end']).isISO8601(),
   body('description').isString().optional(),
@@ -1174,9 +1196,9 @@ app.post(
     if (!validate(req, res)) return
     if (!req.userId) return res.sendStatus(500)
 
-    const { type, name, start, end, description,appointmentType } = req.body
+    const { type, idOrganization, name, start, end, description, appointmentType } = req.body
     try {
-      const appointment = await Appointment.create({appointmentType:"E", type, name, start, end, description, doctorId: req.userId})
+      const appointment = await Appointment.create({ appointmentType: "E", type, name, start, end, description, doctorId: req.userId, idOrganization: idOrganization })
       res.send(appointment)
     } catch (err) {
       handleError(req, res, err)
@@ -1276,10 +1298,10 @@ async function cancelAppointment(req : express.Request,res:express.Response, rol
 }
 
 app.post('/profile/doctor/appointments/cancel/:id',
-keycloak.protect('realm:doctor'),
-async (req, res) => {
+  keycloak.protect('realm:doctor'),
+  async (req, res) => {
   cancelAppointment(req,res,'doctor')
-})
+  })
 
 //
 // PRESCRIPTIONS for PATIENTS:
@@ -1306,39 +1328,39 @@ app.get('/profile/patient/prescriptions', keycloak.protect('realm:patient'), asy
 // POST /profile/patient/appointments/cancel/:id - Cancel appointment by doctor 
 
 app.get('/profile/patient/appointments',
-    keycloak.protect('realm:patient'),
-    query(['start']).isISO8601(), //it is mandatory
-    query(['end']).isISO8601().optional(),
-    async (req, res) => {
-      try {
-        const { start, end } = req.query
-        const { data } = await axios.get<iHub.Appointment[]>(
+  keycloak.protect('realm:patient'),
+  query(['start']).isISO8601(), //it is mandatory
+  query(['end']).isISO8601().optional(),
+  async (req, res) => {
+    try {
+      const { start, end } = req.query
+      const { data } = await axios.get<iHub.Appointment[]>(
             `/profile/patient/appointments?start=${start}&include=doctor${end?`&end=${end}`:''}`,
-            {
-              headers: { Authorization: `Bearer ${getAccessToken(req)}` },
-            }
-        )
+        {
+          headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+        }
+      )
 
-    const ids = data.map(app => app.id)
-    const coreAppointments = await CoreAppointment.find({ id: { $in: ids } })
+      const ids = data.map(app => app.id)
+      const coreAppointments = await CoreAppointment.find({ id: { $in: ids } })
 
-    const FHIRAppointments = coreAppointments.map(appointment => {
-      const FHIRAppointment = data.find(app => app.id === appointment.id)
-      if (!FHIRAppointment) throw new Error(`FHIR Appointment must exist but not found for ID: ${appointment.id}!`)
+      const FHIRAppointments = coreAppointments.map(appointment => {
+        const FHIRAppointment = data.find(app => app.id === appointment.id)
+        if (!FHIRAppointment) throw new Error(`FHIR Appointment must exist but not found for ID: ${appointment.id}!`)
 
-      const minutes = differenceInMinutes(parseISO(FHIRAppointment.start as any), Date.now())
-      if (minutes < 15 && appointment.status === 'upcoming') {
-        return { ...FHIRAppointment, type: 'Appointment', status: 'open' }
-      } else {
-        return { ...FHIRAppointment, type: 'Appointment', status: appointment.status }
-      }
-    })
+        const minutes = differenceInMinutes(parseISO(FHIRAppointment.start as any), Date.now())
+        if (minutes < 15 && appointment.status === 'upcoming') {
+          return { ...FHIRAppointment, type: 'Appointment', status: 'open' }
+        } else {
+          return { ...FHIRAppointment, type: 'Appointment', status: appointment.status }
+        }
+      })
 
-    res.send({ appointments: FHIRAppointments, token: '' })
-  } catch (err) {
-    handleError(req, res, err)
-  }
-})
+      res.send({ appointments: FHIRAppointments, token: '' })
+    } catch (err) {
+      handleError(req, res, err)
+    }
+  })
 
 app.get('/profile/patient/appointments/:id', keycloak.protect('realm:patient'), async (req, res) => {
   const { id } = req.params
@@ -1376,11 +1398,11 @@ app.post(
   keycloak.protect('realm:patient'),
   body('doctorId').isString(),
   body('start').isISO8601(),
-  body('appointmentType').isString(), 
-  body('organizationId').isString(), 
+  body('appointmentType').isString(),
+  body('organizationId').isString(),
   async (req, res) => {
     if (!validate(req, res)) return
-    
+
     const { start, doctorId,appointmentType, organizationId } = req.body
     if (!["V","A"].includes(appointmentType)) res.status(400).send({ message: "Appointmente type must be Virtual (V) or Ambulatory (A)" })
     const startDate = new Date(start)
@@ -1392,13 +1414,13 @@ app.post(
     if (startDate < now) return res.status(400).send({ message: "'start' has to be at least "+ process.env.APPOINTMENT_WAIT_RESERVATION_LENGTH +" minutes in the future" })
 
     try {
-      const availabilities = await calculateAvailability(doctorId, startDate, endDate)
+      const availabilities = await calculateAvailability(doctorId, organizationId, startDate, endDate, getAccessToken(req))
       const available = availabilities.map(av => Date.parse(av["availability"])).includes(Date.parse(start))
       if (!available) return res.status(400).send({ message: 'timeslot is not available for booking' })
       const isAppType = availabilities.filter(av => Date.parse(av["availability"]) == Date.parse(start) && av["appointmentType"].includes(appointmentType)).length > 0
       if (!isAppType) return res.status(400).send({ message: 'Wrong Appointment Type' })
 
-      const appointment = await CoreAppointment.create({appointmentType:appointmentType, date: startDate, status: 'upcoming', id: '_' })
+      const appointment = await CoreAppointment.create({ appointmentType: appointmentType, date: startDate, status: 'upcoming', id: '_', idOrganization: organizationId })
 
       const resp = await axios.post(
         '/profile/patient/appointments',
@@ -1418,10 +1440,10 @@ app.post(
 )
 
 app.post('/profile/patient/appointments/cancel/:id',
-keycloak.protect('realm:patient'),
-async (req, res) => {
+  keycloak.protect('realm:patient'),
+  async (req, res) => {
   cancelAppointment(req,res,'patient')
-})
+  })
 
 //
 // PRESCRIPTIONS for DEPENDENTS:
@@ -1515,8 +1537,8 @@ app.post(
   keycloak.protect('realm:patient'),
   body('doctorId').isString(),
   body('start').isISO8601(),
-  body('appointmentType').isString(), 
-  body('organizationId').isString(), 
+  body('appointmentType').isString(),
+  body('organizationId').isString(),
   async (req, res) => {
     if (!validate(req, res)) return
     const { id } = req.params
@@ -1531,13 +1553,13 @@ app.post(
     if (startDate < now) return res.status(400).send({ message: "'start' has to be at least "+process.env.APPOINTMENT_WAIT_RESERVATION_LENGTH+ " minutes in the future" })
 
     try {
-      const availabilities = await calculateAvailability(doctorId, startDate, endDate)
+      const availabilities = await calculateAvailability(doctorId, organizationId, startDate, endDate, getAccessToken(req))
       const available = availabilities.map(av => Date.parse(av["availability"])).includes(Date.parse(start))
       if (!available) return res.status(400).send({ message: 'timeslot is not available for booking' })
       const isAppType = availabilities.filter(av => Date.parse(av["availability"]) == Date.parse(start) && av["appointmentType"].includes(appointmentType)).length > 0
       if (!isAppType) return res.status(400).send({ message: 'Wrong Appointment Type' })
 
-      const appointment = await CoreAppointment.create({appointmentType:appointmentType, date: startDate, status: 'upcoming', id: '_' })
+      const appointment = await CoreAppointment.create({ appointmentType: appointmentType, date: startDate, status: 'upcoming', id: '_', idOrganization: organizationId })
 
       const resp = await axios.post(
         `/profile/caretaker/dependent/${id}/appointments`,
@@ -1559,10 +1581,10 @@ app.post(
 
 
 app.post('/profile/caretaker/appointments/cancel/:id',
-keycloak.protect('realm:patient'),
-async (req, res) => {
+  keycloak.protect('realm:patient'),
+  async (req, res) => {
   cancelAppointment(req,res,'caretaker')
-})
+  })
 //
 // Doctor
 // Public Routes for searching Doctors
@@ -1571,46 +1593,48 @@ async (req, res) => {
 // GET /doctors/:id/availability - Fetch doctor details
 // 
 
-app.get('/doctors', async (req, res) => {
-  try {
-    const queryString = req.originalUrl.split('?')[1]
+app.get('profile/patient/doctors',
+  keycloak.protect('realm:patient'),
+  async (req, res) => {
+    try {
+      const queryString = req.originalUrl.split('?')[1]
 
-    const resp = await axios.get<{ items: iHub.Doctor[]; total: number }>(
-      `/doctors${queryString ? `?${queryString}` : ''}`
-    )
+      const resp = await axios.get<{ items: iHub.Doctor[]; total: number }>(
+        `/doctors${queryString ? `?${queryString}` : ''}`
+      )
 
-    let doctorsIHub = resp.data.items;
-    
+      let doctorsIHub = resp.data.items;
+
     if (queryString){
-      //creates a map from queryString
-      const qMap = queryString.split('&').reduce((mapAccumulator, obj) => {
-        let queryK = obj.split('=')[0]
-        let queryV = obj.split('=')[1]
-        mapAccumulator.set(queryK, queryV);
-        return mapAccumulator;
-      }, new Map());
-    
+        //creates a map from queryString
+        const qMap = queryString.split('&').reduce((mapAccumulator, obj) => {
+          let queryK = obj.split('=')[0]
+          let queryV = obj.split('=')[1]
+          mapAccumulator.set(queryK, queryV);
+          return mapAccumulator;
+        }, new Map());
+
       if (qMap.has('appointmentType') && qMap.get('appointmentType')){
-        //filter doctors by checking if they dispose with a schedule with the type of Appointment specified 
-        doctorsIHub = await filterByTypeOfAvailability(resp.data.items, qMap.get('appointmentType'))
+          //filter doctors by checking if they dispose with a schedule with the type of Appointment specified 
+          doctorsIHub = await filterByTypeOfAvailability(resp.data.items, qMap.get('appointmentType'))
+        }
       }
+
+      // FIXME: this currently creates one worker per doctor with huge overhead.
+      // Probably best to move this into a own worker.
+
+      const doctorsWithNextAvailability = await Promise.all(
+        doctorsIHub.map(async doctor => ({
+          ...doctor,
+          nextAvailability: await calculateNextAvailability(doctor.id, '', getAccessToken(req)),
+        }))
+      )
+
+      res.send({ items: doctorsWithNextAvailability, total: doctorsIHub.length })
+    } catch (err) {
+      handleError(req, res, err)
     }
-
-    // FIXME: this currently creates one worker per doctor with huge overhead.
-    // Probably best to move this into a own worker.
-    
-    const doctorsWithNextAvailability = await Promise.all(
-      doctorsIHub.map(async doctor => ({
-        ...doctor,
-        nextAvailability: await calculateNextAvailability(doctor.id),
-      }))
-    )
-
-    res.send({ items: doctorsWithNextAvailability, total: doctorsIHub.length })
-  } catch (err) {
-    handleError(req, res, err)
-  }
-})
+  })
 
 app.get('/doctors/:id', async (req, res) => {
   try {
@@ -1622,13 +1646,15 @@ app.get('/doctors/:id', async (req, res) => {
 })
 
 app.get(
-  '/doctors/:id/availability',
+  '/profile/patient/doctors/:id/availability',
+  keycloak.protect('realm:patient'),
   param('id').isString(),
+  query('organizationIdList').isString(),
   query(['start', 'end']).isISO8601(),
   async (req: express.Request, res: express.Response) => {
     if (!validate(req, res)) return
 
-    const { start, end } = req.query
+    const { start, end, organizationIdList } = req.query
     const { id: doctorId } = req.params
 
     try {
@@ -1647,14 +1673,26 @@ app.get(
         endDate.setDate(endDate.getDate() + 31)
       }
 
-      const availabilities = await calculateAvailability(doctorId, startDate, endDate)
-      const nextAvailability = await calculateNextAvailability(doctorId)
+      const organizations = (organizationIdList as string).split(",");
+      console.log(organizations)
+
+      let availabilitiesBlocks: any[] = [];
+      
+      try {
+        for (const idOrganization of organizations) {
+          const availabilities = await calculateAvailability(doctorId, idOrganization, startDate, endDate, getAccessToken(req));
+          const nextAvailability = await calculateNextAvailability(doctorId, idOrganization, getAccessToken(req));
+          availabilitiesBlocks.push({ idOrganization: idOrganization, availabilities, nextAvailability });
+        }
+      } catch (err) {
+        console.log(err)
+      }
 
       // FIXME: nextAvailability is runing the whole loop again.
       // Could be done in one loop in the case that start = now
       // Also starts two workers. Could start one
-      console.log("final results availability: ",availabilities, nextAvailability)
-      res.send({ availabilities, nextAvailability })
+      console.log("final results availability: ", availabilitiesBlocks);
+      res.send(availabilitiesBlocks)
     } catch (err) {
       handleError(req, res, err)
     }
@@ -1688,7 +1726,7 @@ app.get('/profile/patient/diagnosticReport/:id', keycloak.protect('realm:patient
   } catch (err) {
     handleError(req, res, err)
   }
-}) 
+})
 
 app.post('/profile/patient/diagnosticReport', keycloak.protect('realm:patient'), async (req, res) => {
   const payload = req.body
@@ -1748,7 +1786,7 @@ app.post('/profile/caretaker/dependent/:id/diagnosticReport', keycloak.protect('
   const { id } = req.params
   const startDate = new Date(payload.effectiveDate)
   if (startDate > new Date()) return res.status(400).send({ message: "invalid effectiveDate" })
-  
+
   try {
     const resp = await axios.post(`/profile/caretaker/dependent/${id}/diagnosticReport`, payload, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
     res.status(resp.status).send(resp.data)
@@ -1778,8 +1816,8 @@ app.post('/profile/organization-manager/organization', keycloak.protect('realm:o
 
 app.get('/profile/organization-manager/organization', keycloak.protect('realm:organization_manager'), async (req, res) => {
   try {
-    const resp = await axios.get(`/profile/organization-manager/organization`, 
-    { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    const resp = await axios.get(`/profile/organization-manager/organization`,
+      { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
     res.status(resp.status).send(resp.data)
   } catch (err) {
     handleError(req, res, err)
@@ -1817,8 +1855,8 @@ app.post('/profile/organization-manager/doctorRole', keycloak.protect('realm:org
 
 app.get('/profile/organization-manager/doctorRole', keycloak.protect('realm:organization_manager'), async (req, res) => {
   try {
-    const resp = await axios.get(`/profile/organization-manager/doctorRole`, 
-    { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    const resp = await axios.get(`/profile/organization-manager/doctorRole`,
+      { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
     res.status(resp.status).send(resp.data)
   } catch (err) {
     handleError(req, res, err)
@@ -1881,22 +1919,22 @@ app.post('/profile/admin/farmanuario/synchronize', keycloak.protect('realm:admin
 // REPORTS [open endpoint]
 // GET /reports/:report_identifier - Prescription verification URL
 app.get('/reports/:id',
-    param('id').isNumeric(),
-    query('verification_code').isString(),
+  param('id').isNumeric(),
+  query('verification_code').isString(),
     async (req:express.Request, res:express.Response) => {
   if (!validate(req, res)){ return }
 
   const { id:reportId } = req.params
-  const { verification_code: verificationCode } = req.query
+    const { verification_code: verificationCode } = req.query
 
-  try {
-    const response = await axios.get(`/reports/${reportId}?verification_code=${verificationCode}`)
-    res.set('Content-Type', 'text/html');
-    res.end(response.data)
-  } catch (err) {
-    handleError(req, res, err)
-  }
-})
+    try {
+      const response = await axios.get(`/reports/${reportId}?verification_code=${verificationCode}`)
+      res.set('Content-Type', 'text/html');
+      res.end(response.data)
+    } catch (err) {
+      handleError(req, res, err)
+    }
+  })
 
 //
 //
