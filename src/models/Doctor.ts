@@ -35,7 +35,7 @@ const DoctorSchema: Schema = new Schema(
           sat: [{ start: Number, end: Number, appointmentType: { type: String, enum: ['AV', 'V', 'A'], required: true } }],
           sun: [{ start: Number, end: Number, appointmentType: { type: String, enum: ['AV', 'V', 'A'], required: true } }],
         },
-        idOrganization: String
+        idOrganization: { type: String, required: true },
       }
     ]
   },
