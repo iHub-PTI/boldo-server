@@ -1627,10 +1627,12 @@ app.get('/profile/patient/doctors',
       // Probably best to move this into a own worker.
 
       const doctorsWithNextAvailability = await Promise.all(
-        doctorsIHub.map(async doctor => ({
-          ...doctor,
-          nextAvailability: await calculateNextAvailability(doctor.id, '', getAccessToken(req)),
-        }))
+        doctorsIHub.map(async doctor => {
+            for (const o of doctor.organizations) {
+              o.nextAvailability = await calculateNextAvailability(doctor.id, o.id, getAccessToken(req))
+            }
+            return doctor
+        })
       )
 
       res.send({ items: doctorsWithNextAvailability, total: doctorsIHub.length })
