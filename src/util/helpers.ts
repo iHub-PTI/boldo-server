@@ -114,19 +114,31 @@ const calculateOpenHours = (openHours: OpenHour, start: Date, end: Date) => {
   })
 }
 
-export const calculateNextAvailability = async (doctorId: string, idOrganization: string, accessToken: string) => {
+export const calculateNextAvailability = async (doctorId: string, idOrganization: string, accessToken: string, typeOfAvailabilityParam: String) => {
   const startDate = new Date()
   startDate.setMilliseconds(startDate.getMilliseconds() + APPOINTMENT_WAIT_RESERVATION_LENGTH)
   const endDate = new Date(startDate)
   endDate.setDate(endDate.getDate() + 7)
-  const availabilitiesWeek = await calculateAvailability(doctorId, idOrganization, startDate, endDate, accessToken)
-  if (availabilitiesWeek.length > 0) return availabilitiesWeek[0]
-
+  let availabilitiesWeek = await calculateAvailability(doctorId, idOrganization, startDate, endDate, accessToken)
+  if (availabilitiesWeek.length > 0) {
+    if (typeOfAvailabilityParam != "") {
+      availabilitiesWeek = availabilitiesWeek.filter((w: any) => w.appointmentType == typeOfAvailabilityParam)
+    } 
+    if (availabilitiesWeek.length > 0) {
+      return availabilitiesWeek[0];
+    } 
+  }
   startDate.setDate(startDate.getDate() + 7)
   endDate.setDate(endDate.getDate() + 24)
-  const availabilitiesMonth = await calculateAvailability(doctorId, idOrganization, startDate, endDate, accessToken)
-
-  if (availabilitiesMonth.length > 0) return availabilitiesMonth[0]
+  let availabilitiesMonth = await calculateAvailability(doctorId, idOrganization, startDate, endDate, accessToken)
+  if (availabilitiesMonth.length > 0) {
+    if (typeOfAvailabilityParam != "") {
+      availabilitiesMonth = availabilitiesMonth.filter((w: any) => w.appointmentType == typeOfAvailabilityParam)
+    } 
+    if (availabilitiesMonth.length > 0) {
+      return availabilitiesMonth[0];
+    } 
+  }
   return null
 }
 
@@ -180,22 +192,20 @@ export async function filterByAppointmentAvailability(doctors: iHub.Doctor[], ty
   }
 
   let ids = doctors.map(doctor => doctor.id);
-
   //the filtering is done in the MongoDB
   let doctorsIHub = await Doctor.find(
     {'id': { $in:ids },
     $or:[ 
-      {'openHours.mon': { $elemMatch: { appointmentType: {$regex: '.*' + typeOfAvailabilityParam + '.*' }}}},
-      {'openHours.tue': { $elemMatch: { appointmentType: {$regex: '.*' + typeOfAvailabilityParam + '.*' }}}},
-      {'openHours.wed': { $elemMatch: { appointmentType: {$regex: '.*' + typeOfAvailabilityParam + '.*' }}}},
-      {'openHours.thu': { $elemMatch: { appointmentType: {$regex: '.*' + typeOfAvailabilityParam + '.*' }}}},
-      {'openHours.fri': { $elemMatch: { appointmentType: {$regex: '.*' + typeOfAvailabilityParam + '.*' }}}},
-      {'openHours.sat': { $elemMatch: { appointmentType: {$regex: '.*' + typeOfAvailabilityParam + '.*' }}}},
-      {'openHours.sun': { $elemMatch: { appointmentType: {$regex: '.*' + typeOfAvailabilityParam + '.*' }}}}]}
+      {'blocks.openHours.mon': { $elemMatch: { appointmentType: {$regex: '.*' + typeOfAvailabilityParam + '.*' }}}},
+      {'blocks.openHours.tue': { $elemMatch: { appointmentType: {$regex: '.*' + typeOfAvailabilityParam + '.*' }}}},
+      {'blocks.openHours.wed': { $elemMatch: { appointmentType: {$regex: '.*' + typeOfAvailabilityParam + '.*' }}}},
+      {'blocks.openHours.thu': { $elemMatch: { appointmentType: {$regex: '.*' + typeOfAvailabilityParam + '.*' }}}},
+      {'blocks.openHours.fri': { $elemMatch: { appointmentType: {$regex: '.*' + typeOfAvailabilityParam + '.*' }}}},
+      {'blocks.openHours.sat': { $elemMatch: { appointmentType: {$regex: '.*' + typeOfAvailabilityParam + '.*' }}}},
+      {'blocks.openHours.sun': { $elemMatch: { appointmentType: {$regex: '.*' + typeOfAvailabilityParam + '.*' }}}}]}
     );
 
   var hashDociHubs = new Map(doctorsIHub.map(item => [item.id, item]));
-
   //return only the doctos that were obtained from MongoDB
   let doctorsToReturn = doctors.filter(doctor => hashDociHubs.get(doctor.id))
   return doctorsToReturn
