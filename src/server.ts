@@ -1593,14 +1593,17 @@ app.post('/profile/caretaker/appointments/cancel/:id',
 // GET /doctors/:id/availability - Fetch doctor details
 // 
 
-app.get('profile/patient/doctors',
+app.get('/profile/patient/doctors',
   keycloak.protect('realm:patient'),
   async (req, res) => {
     try {
       const queryString = req.originalUrl.split('?')[1]
 
       const resp = await axios.get<{ items: iHub.Doctor[]; total: number }>(
-        `/doctors${queryString ? `?${queryString}` : ''}`
+        `/profile/patient/doctors${queryString ? `?${queryString}` : ''}`, 
+        {
+          headers: { Authorization: `Bearer ${getAccessToken(req)}` }
+        }
       )
 
       let doctorsIHub = resp.data.items;
@@ -1624,10 +1627,12 @@ app.get('profile/patient/doctors',
       // Probably best to move this into a own worker.
 
       const doctorsWithNextAvailability = await Promise.all(
-        doctorsIHub.map(async doctor => ({
-          ...doctor,
-          nextAvailability: await calculateNextAvailability(doctor.id, '', getAccessToken(req)),
-        }))
+        doctorsIHub.map(async doctor => {
+            for (const o of doctor.organizations) {
+              o.nextAvailability = await calculateNextAvailability(doctor.id, o.id, getAccessToken(req))
+            }
+            return doctor
+        })
       )
 
       res.send({ items: doctorsWithNextAvailability, total: doctorsIHub.length })
@@ -1636,13 +1641,20 @@ app.get('profile/patient/doctors',
     }
   })
 
-app.get('/doctors/:id', async (req, res) => {
-  try {
-    const resp = await axios.get<iHub.Doctor>(`/doctors/${req.params.id}`)
-    res.send(resp.data)
-  } catch (err) {
-    handleError(req, res, err)
-  }
+app.get('/profile/patient/doctors/:id',
+  keycloak.protect('realm:patient'),
+  async (req, res) => {
+    try {
+      const resp = await axios.get<iHub.Doctor>(
+        `/profile/patient/doctors/${req.params.id}`,
+        {
+          headers: { Authorization: `Bearer ${getAccessToken(req)}` }
+        }
+      )
+      res.send(resp.data)
+    } catch (err) {
+      handleError(req, res, err)
+    }
 })
 
 app.get(
