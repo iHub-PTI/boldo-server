@@ -1607,17 +1607,17 @@ app.get('/profile/patient/doctors',
       )
 
       let doctorsIHub = resp.data.items;
-
-    if (queryString){
-        //creates a map from queryString
-        const qMap = queryString.split('&').reduce((mapAccumulator, obj) => {
-          let queryK = obj.split('=')[0]
-          let queryV = obj.split('=')[1]
-          mapAccumulator.set(queryK, queryV);
-          return mapAccumulator;
-        }, new Map());
-
-      if (qMap.has('appointmentType') && qMap.get('appointmentType')){
+      let typeOfAvailabilityParam = "";
+      if (queryString){
+          //creates a map from queryString
+          const qMap = queryString.split('&').reduce((mapAccumulator, obj) => {
+            let queryK = obj.split('=')[0]
+            let queryV = obj.split('=')[1]
+            mapAccumulator.set(queryK, queryV);
+            return mapAccumulator;
+          }, new Map());
+        if (qMap.has('appointmentType') && qMap.get('appointmentType')){
+          typeOfAvailabilityParam = qMap.get('appointmentType');
           //filter doctors by checking if they dispose with a schedule with the type of Appointment specified 
           doctorsIHub = await filterByTypeOfAvailability(resp.data.items, qMap.get('appointmentType'))
         }
@@ -1629,7 +1629,7 @@ app.get('/profile/patient/doctors',
       const doctorsWithNextAvailability = await Promise.all(
         doctorsIHub.map(async doctor => {
             for (const o of doctor.organizations) {
-              o.nextAvailability = await calculateNextAvailability(doctor.id, o.id, getAccessToken(req))
+              o.nextAvailability = await calculateNextAvailability(doctor.id, o.id, getAccessToken(req), typeOfAvailabilityParam)
             }
             return doctor
         })
@@ -1693,7 +1693,7 @@ app.get(
       try {
         for (const idOrganization of organizations) {
           const availabilities = await calculateAvailability(doctorId, idOrganization, startDate, endDate, getAccessToken(req));
-          const nextAvailability = await calculateNextAvailability(doctorId, idOrganization, getAccessToken(req));
+          const nextAvailability = await calculateNextAvailability(doctorId, idOrganization, getAccessToken(req), "");
           availabilitiesBlocks.push({ idOrganization: idOrganization, availabilities, nextAvailability });
         }
       } catch (err) {
