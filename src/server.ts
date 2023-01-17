@@ -1692,8 +1692,10 @@ app.get(
       try {
         for (const idOrganization of organizations) {
           const availabilities = await calculateAvailability(doctorId, idOrganization, startDate, endDate, getAccessToken(req));
-          const nextAvailability = await calculateNextAvailability(doctorId, idOrganization, getAccessToken(req), "");
-          availabilitiesBlocks.push({ idOrganization: idOrganization, availabilities, nextAvailability });
+          const nextAvailability = await calculateNextAvailability(doctorId, idOrganization, getAccessToken(req), "");          
+          if (availabilities.length > 0 || nextAvailability != null) {
+            availabilitiesBlocks.push({ idOrganization: idOrganization, availabilities, nextAvailability });  
+          }
         }
       } catch (err) {
         console.log(err)
