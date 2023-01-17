@@ -1145,7 +1145,8 @@ app.get(
       const { data } = resp
       if(Array.isArray(data)){
         const ids = data.map(appointment => appointment.id)
-        const coreAppointments = await CoreAppointment.find({ id: { $in: ids } })
+        const idsOrg = data.map(appointment => appointment.organizationId)
+        const coreAppointments = await CoreAppointment.find({ id: { $in: ids }, idOrganization: { $in: idsOrg } })
 
         let FHIRAppointments = [] as (iHub.Appointment & { type: string; status: ICoreAppointment['status'] })[]
 
@@ -1171,13 +1172,11 @@ app.get(
         }
 
         let appointments = [] as IAppointment[]
-        if (!status) appointments = await Appointment.find({ doctorId: req.userId })
+        if (!status) appointments = await Appointment.find({ doctorId: req.userId, idOrganization: { $in: idsOrg } })
         res.status(resp.status).send({ appointments: [...FHIRAppointments, ...appointments], token })
       }else{
         res.status(resp.status).send()
       }
-
-
     } catch (err) {
       handleError(req, res, err)
     }

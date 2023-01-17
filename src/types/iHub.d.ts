@@ -54,6 +54,7 @@ export interface Appointment {
   patientId: Patient['id']
   doctorId: Doctor['id']
   description: string
+  organizationId: string
 }
 
 export interface Organization {
