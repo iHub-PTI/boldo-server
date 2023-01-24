@@ -168,31 +168,59 @@ app.put(
     if (!validate(req, res)) return
 
     const { blocks, ...ihubPayload } = req.body
+    let update = true;
+    if (blocks.length > 1) {
+      const dayOfTheWeek = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+      for(var index = 0; index < blocks.length; index++) {
+        const openHours = blocks[index].openHours;
+        for (var j = 0; j < dayOfTheWeek.length; j++) {
+          const openHoursOfDay = openHours[dayOfTheWeek[j]];
+          for (var k = 0; k < openHoursOfDay.length; k++) {
+            const hour = openHoursOfDay[k];
+            if (index < blocks.length-1) {
+              const openHoursOrgNext = blocks[index+1].openHours[dayOfTheWeek[j]];
+              const result = openHoursOrgNext.find((orgNext: any) =>
+                (orgNext.start == hour.start ||
+                orgNext.start < hour.start ||
+                (orgNext.start > hour.start && orgNext.start < hour.end)) ||
+                (orgNext.start > hour.start && orgNext.end <= hour.end)
+              )
+              if (result) {
+                update = false;
+                handleError(req, res, { status: 400, message: "openHours settings overlay" });
+                return;
+              }             
+            }
+          }
+        }  
+      };
+    }
 
     try {
-      //get all doctor workspaces
-      const organization = await axios.get('/profile/doctor/organizations', { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
-      let update = true;
-      // validations and controls
-      if (organization.data) {
-        let isSuscribed = false;
-        blocks.forEach((element: any) => {
-          isSuscribed = organization.data.some((org: any) => org.id == element.idOrganization)
-          if (!isSuscribed) {
-            update = false;
-            res.status(400).send({ message: "The doctor has no workspace: "+element.idOrganization });
-          }
-        });
-      } else {
-        update = false;
-        res.status(400).send({ message: "The doctor has no workspace" });
-      }
-
       if (update) {
-        const resp = await axios.get('/profile/doctor', { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
-        await Doctor.findOneAndUpdate({ _id: req.userId, id: resp.data.id }, { blocks } ,{ upsert: true, runValidators: true })
-        await axios.put('/profile/doctor', ihubPayload, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
-        res.sendStatus(200)
+        //get all doctor workspaces
+        const organization = await axios.get('/profile/doctor/organizations', { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+        // validations and controls
+        if (organization.data) {
+          let isSuscribed = false;
+          blocks.forEach((element: any) => {
+            isSuscribed = organization.data.some((org: any) => org.id == element.idOrganization)
+            if (!isSuscribed) {
+              update = false;
+              res.status(400).send({ message: "The doctor has no workspace: "+element.idOrganization });
+            }
+          });
+        } else {
+          update = false;
+          res.status(400).send({ message: "The doctor has no workspace" });
+        }
+
+        if (update) {
+          const resp = await axios.get('/profile/doctor', { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+          await Doctor.findOneAndUpdate({ _id: req.userId, id: resp.data.id }, { blocks } ,{ upsert: true, runValidators: true })
+          await axios.put('/profile/doctor', ihubPayload, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+          res.sendStatus(200)
+        }
       }
     } catch (err) {
       handleError(req, res, err)
