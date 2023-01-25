@@ -1155,9 +1155,9 @@ app.get('/profile/caretaker/dependent/:idDependent/relatedEncounters', keycloak.
 app.get(
   '/profile/doctor/appointments',
   keycloak.protect('realm:doctor'),
-  query(['start', 'end']).isISO8601().optional(),
+  query(['start', 'end']).isISO8601(),
   query('status').isString().optional(),
-  query('organizationId').isString().optional(),
+  query('organizationId').isString(),
   async (req, res) => {
     if (!validate(req, res)) return
 
@@ -1172,8 +1172,8 @@ app.get(
       )
       const { data } = resp
       if(Array.isArray(data)){
-        const ids = data.map(appointment => appointment.id)
-        const idsOrg = data.map(appointment => appointment.organizationId)
+        const ids = data.map(appointment => appointment.id);
+        const idsOrg = (organizationId as string).split(",");
         const coreAppointments = await CoreAppointment.find({ id: { $in: ids }, idOrganization: { $in: idsOrg } })
 
         let FHIRAppointments = [] as (iHub.Appointment & { type: string; status: ICoreAppointment['status'] })[]
@@ -1198,9 +1198,10 @@ app.get(
             token = createToken(ids, 'doctor')
           }
         }
-
-        let appointments = [] as IAppointment[]
-        if (!status) appointments = await Appointment.find({ doctorId: req.userId, idOrganization: { $in: idsOrg } })
+        let appointments = [] as IAppointment[];
+        let newStart = new Date(start as string);
+        let newEnd = new Date(end as string); 
+        if (!status) appointments = await Appointment.find({ doctorId: req.userId, idOrganization: { $in: idsOrg }, end: { $gt: newStart }, start: { $lt: newEnd } })
         res.status(resp.status).send({ appointments: [...FHIRAppointments, ...appointments], token })
       }else{
         res.status(resp.status).send()
