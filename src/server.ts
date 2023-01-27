@@ -1157,7 +1157,7 @@ app.get(
   keycloak.protect('realm:doctor'),
   query(['start', 'end']).isISO8601(),
   query('status').isString().optional(),
-  query('organizationId').isString(),
+  query('organizationId').isString().optional(),
   async (req, res) => {
     if (!validate(req, res)) return
 
@@ -1173,7 +1173,14 @@ app.get(
       const { data } = resp
       if(Array.isArray(data)){
         const ids = data.map(appointment => appointment.id);
-        const idsOrg = (organizationId as string).split(",");
+        let idsOrg: any[] = [];
+        if (!organizationId) {
+          const organizations = await axios.get<iHub.Organization[]>('/profile/doctor/organizations', { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+          idsOrg = organizations.data.map(org =>  org.id)
+        } else {
+          idsOrg.push(organizationId);
+        } 
+        console.log(idsOrg); 
         const coreAppointments = await CoreAppointment.find({ id: { $in: ids }, idOrganization: { $in: idsOrg } })
 
         let FHIRAppointments = [] as (iHub.Appointment & { type: string; status: ICoreAppointment['status'] })[]
