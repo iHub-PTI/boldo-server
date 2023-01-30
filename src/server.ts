@@ -1155,7 +1155,7 @@ app.get('/profile/caretaker/dependent/:idDependent/relatedEncounters', keycloak.
 app.get(
   '/profile/doctor/appointments',
   keycloak.protect('realm:doctor'),
-  query(['start', 'end']).isISO8601(),
+  query(['start', 'end']).isISO8601().optional(),
   query('status').isString().optional(),
   query('organizationId').isString().optional(),
   async (req, res) => {
@@ -1206,9 +1206,11 @@ app.get(
           }
         }
         let appointments = [] as IAppointment[];
-        let newStart = new Date(start as string);
-        let newEnd = new Date(end as string); 
-        if (!status) appointments = await Appointment.find({ doctorId: req.userId, idOrganization: { $in: idsOrg }, end: { $gt: newStart }, start: { $lt: newEnd } })
+        if (!status) {
+          let newStart = new Date(start as string);
+          let newEnd = new Date(end as string); 
+          appointments = await Appointment.find({ doctorId: req.userId, idOrganization: { $in: idsOrg }, end: { $gt: newStart }, start: { $lt: newEnd } })        
+        }
         res.status(resp.status).send({ appointments: [...FHIRAppointments, ...appointments], token })
       }else{
         res.status(resp.status).send()
