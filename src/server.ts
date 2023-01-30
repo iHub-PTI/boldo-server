@@ -1155,9 +1155,9 @@ app.get('/profile/caretaker/dependent/:idDependent/relatedEncounters', keycloak.
 app.get(
   '/profile/doctor/appointments',
   keycloak.protect('realm:doctor'),
-  query(['start', 'end']).isISO8601(),
+  query(['start', 'end']).isISO8601().optional(),
   query('status').isString().optional(),
-  query('organizationId').isString(),
+  query('organizationId').isString().optional(),
   async (req, res) => {
     if (!validate(req, res)) return
 
@@ -1173,7 +1173,14 @@ app.get(
       const { data } = resp
       if(Array.isArray(data)){
         const ids = data.map(appointment => appointment.id);
-        const idsOrg = (organizationId as string).split(",");
+        let idsOrg: any[] = [];
+        if (!organizationId) {
+          const organizations = await axios.get<iHub.Organization[]>('/profile/doctor/organizations', { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+          idsOrg = organizations.data.map(org =>  org.id)
+        } else {
+          idsOrg.push(organizationId);
+        } 
+        console.log(idsOrg); 
         const coreAppointments = await CoreAppointment.find({ id: { $in: ids }, idOrganization: { $in: idsOrg } })
 
         let FHIRAppointments = [] as (iHub.Appointment & { type: string; status: ICoreAppointment['status'] })[]
@@ -1199,9 +1206,11 @@ app.get(
           }
         }
         let appointments = [] as IAppointment[];
-        let newStart = new Date(start as string);
-        let newEnd = new Date(end as string); 
-        if (!status) appointments = await Appointment.find({ doctorId: req.userId, idOrganization: { $in: idsOrg }, end: { $gt: newStart }, start: { $lt: newEnd } })
+        if (!status) {
+          let newStart = new Date(start as string);
+          let newEnd = new Date(end as string); 
+          appointments = await Appointment.find({ doctorId: req.userId, idOrganization: { $in: idsOrg }, end: { $gt: newStart }, start: { $lt: newEnd } })        
+        }
         res.status(resp.status).send({ appointments: [...FHIRAppointments, ...appointments], token })
       }else{
         res.status(resp.status).send()
