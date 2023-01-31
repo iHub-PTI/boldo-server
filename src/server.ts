@@ -187,7 +187,7 @@ app.put(
               )
               if (result) {
                 update = false;
-                handleError(req, res, { status: 400, message: "openHours settings overlay" });
+                handleError(req, res, { status: 400, message: "openHours settings overlay between organizations " + blocks[index].idOrganization + " and " + blocks[index+1].idOrganization });
                 return;
               }             
             }
@@ -1726,14 +1726,24 @@ app.get(
       console.log(organizations)
 
       let availabilitiesBlocks: any[] = [];
+      let organizationsId: any[] = [];
+      const commonOrganizations = await axios.get<iHub.Organization[]>(`/profile/patient/doctors/${doctorId}/common-organizations`, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+      console.log(commonOrganizations.data);
+      for (const idOrganization of organizations) {
+        console.log(commonOrganizations.data.map(org => org.id).includes(idOrganization));
+        console.log(idOrganization)
+        if (commonOrganizations.data.map(org => org.id).includes(idOrganization)) {
+          organizationsId.push(idOrganization);
+        }
+      }
+
+      console.log(organizationsId)
       
       try {
-        for (const idOrganization of organizations) {
+        for (const idOrganization of organizationsId) {
           const availabilities = await calculateAvailability(doctorId, idOrganization, startDate, endDate, getAccessToken(req));
           const nextAvailability = await calculateNextAvailability(doctorId, idOrganization, getAccessToken(req), "");          
-          if (availabilities.length > 0 || nextAvailability != null) {
-            availabilitiesBlocks.push({ idOrganization: idOrganization, availabilities, nextAvailability });  
-          }
+          availabilitiesBlocks.push({ idOrganization: idOrganization, availabilities, nextAvailability });  
         }
       } catch (err) {
         console.log(err)
