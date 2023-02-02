@@ -172,16 +172,19 @@ app.put(
     if (blocks.length > 1) {
       const dayOfTheWeek = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
       for(var index = 0; index < blocks.length; index++) {
+        //openHour configuration of the current organization
         const openHours = blocks[index].openHours;
         for (var j = 0; j < dayOfTheWeek.length; j++) {
           const openHoursOfDay = openHours[dayOfTheWeek[j]];
           for (var k = 0; k < openHoursOfDay.length; k++) {
             const hour = openHoursOfDay[k];
-            if (index < blocks.length-1) {
-              const openHoursOrgNext = blocks[index+1].openHours[dayOfTheWeek[j]];
+            for(var i = index+1; i < blocks.length; i++) {
+              //openHour configuration of the next organization
+              const openHoursOrgNext = blocks[i].openHours[dayOfTheWeek[j]];
+              //openHours configuration overlay control
               const result = openHoursOrgNext.find((orgNext: any) =>
                 (orgNext.start == hour.start ||
-                orgNext.start < hour.start ||
+                (orgNext.start < hour.start && orgNext.end > hour.start) ||
                 (orgNext.start > hour.start && orgNext.start < hour.end)) ||
                 (orgNext.start > hour.start && orgNext.end <= hour.end)
               )
