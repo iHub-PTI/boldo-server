@@ -1751,7 +1751,7 @@ app.get(
         for (const idOrganization of organizationsId) {
           let availabilities = await calculateAvailability(doctorId, idOrganization, startDate, endDate, getAccessToken(req));
           if (typeOfAvailabilityParam != "") {
-            availabilities = availabilities.filter((w: any) => w.appointmentType == typeOfAvailabilityParam);
+            availabilities = availabilities.filter((w: any) => w.appointmentType.includes(typeOfAvailabilityParam));
           }
           const nextAvailability = await calculateNextAvailability(doctorId, idOrganization, getAccessToken(req), typeOfAvailabilityParam);          
           availabilitiesBlocks.push({ idOrganization: idOrganization, availabilities, nextAvailability });  
