@@ -1703,15 +1703,20 @@ app.get(
   param('id').isString(),
   query('organizationIdList').isString(),
   query(['start', 'end']).isISO8601(),
+  query('appointmentType').isString().optional(),
   async (req: express.Request, res: express.Response) => {
     if (!validate(req, res)) return
 
-    const { start, end, organizationIdList } = req.query
+    const { start, end, organizationIdList, appointmentType } = req.query
     const { id: doctorId } = req.params
 
     try {
       let startDate = new Date(start as string)
       let endDate = new Date(end as string)
+      let typeOfAvailabilityParam = "";
+      if (appointmentType) {
+        typeOfAvailabilityParam = appointmentType as string;
+      }
 
       const now = new Date()
       now.setMilliseconds(now.getMilliseconds() + APPOINTMENT_WAIT_RESERVATION_LENGTH)
@@ -1744,8 +1749,11 @@ app.get(
       
       try {
         for (const idOrganization of organizationsId) {
-          const availabilities = await calculateAvailability(doctorId, idOrganization, startDate, endDate, getAccessToken(req));
-          const nextAvailability = await calculateNextAvailability(doctorId, idOrganization, getAccessToken(req), "");          
+          let availabilities = await calculateAvailability(doctorId, idOrganization, startDate, endDate, getAccessToken(req));
+          if (typeOfAvailabilityParam != "") {
+            availabilities = availabilities.filter((w: any) => w.appointmentType.includes(typeOfAvailabilityParam));
+          }
+          const nextAvailability = await calculateNextAvailability(doctorId, idOrganization, getAccessToken(req), typeOfAvailabilityParam);          
           availabilitiesBlocks.push({ idOrganization: idOrganization, availabilities, nextAvailability });  
         }
       } catch (err) {
