@@ -5,6 +5,7 @@ export interface ICoreAppointment extends Document {
   appointmentType: 'A' | 'V'
   id: string
   date: Date
+  idOrganization: String
 }
 
 export const CoreAppointmentSchema: Schema = new Schema(
@@ -13,6 +14,7 @@ export const CoreAppointmentSchema: Schema = new Schema(
     appointmentType: { type: String, enum: ['A', 'V'], required: true },
     date: { type: Date, required: true },
     id: { type: String, required: true },
+    idOrganization: { type: String, required: true },
   },
   { timestamps: true }
 )
