@@ -689,7 +689,7 @@ app.post('/profile/patient', keycloak.protect('realm:patient'), async (req, res)
 
 app.get('/profile/patient/organizations', keycloak.protect('realm:patient'), async (req, res) => {
   try {
-    const resp = await axios.get('/profile/patient/organizations', { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    const resp = await axios.get(`/profile/patient/organizations${req.query.subscribed ? `?subscribed=${req.query.subscribed}` : ''}`, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
     res.status(resp.status).send(resp.data)
   } catch (err) {
     handleError(req, res, err)
