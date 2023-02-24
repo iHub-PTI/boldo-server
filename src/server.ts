@@ -1896,6 +1896,9 @@ app.post('/profile/caretaker/dependent/:id/diagnosticReport', keycloak.protect('
 // POST /profile/organization-manager/organization - create a BMO organization
 // GET /profile/organization-manager/organization - obtaint a list of BMO organizations
 // GET /organizations  - obtaint a list of BMO organizations
+// GET /organization/patient/subscriptionRequests  - obtaint a list of patients subscription requests 
+// PUT /organization/patient/subscriptionRequests  - accept/reject patients subscription requests 
+
 
 app.post('/profile/organization-manager/organization', keycloak.protect('realm:organization_manager'), async (req, res) => {
   const payload = req.body
@@ -1913,6 +1916,28 @@ app.get('/profile/organization-manager/organization', keycloak.protect('realm:or
   try {
     const resp = await axios.get(`/profile/organization-manager/organization`,
       { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    res.status(resp.status).send(resp.data)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
+
+app.get('/profile/organization-manager/organization/patient/subscriptionRequests', keycloak.protect('realm:organization_manager'), async (req, res) => {
+  try {
+    const resp = await axios.get(`/profile/organization-manager/organization/patient/subscriptionRequests`,
+      { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    res.status(resp.status).send(resp.data)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
+
+app.put('/profile/organization-manager/organization/patient/subscriptionRequests', keycloak.protect('realm:organization_manager'), async (req, res) => {
+  const payload = req.body
+  try {
+    const resp =  await axios.post('/profile/organization-manager/organization/patient/subscriptionRequests', payload, {
+      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+    })
     res.status(resp.status).send(resp.data)
   } catch (err) {
     handleError(req, res, err)
