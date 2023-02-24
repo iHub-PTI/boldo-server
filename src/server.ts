@@ -1935,7 +1935,7 @@ app.get('/profile/organization-manager/organization/patient/subscriptionRequests
 app.put('/profile/organization-manager/organization/patient/subscriptionRequests', keycloak.protect('realm:organization_manager'), async (req, res) => {
   const payload = req.body
   try {
-    const resp =  await axios.post('/profile/organization-manager/organization/patient/subscriptionRequests', payload, {
+    const resp =  await axios.put('/profile/organization-manager/organization/patient/subscriptionRequests', payload, {
       headers: { Authorization: `Bearer ${getAccessToken(req)}` },
     })
     res.status(resp.status).send(resp.data)
