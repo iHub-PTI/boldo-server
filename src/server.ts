@@ -280,17 +280,18 @@ app.get('/profile/doctor/relatedEncounters/:id', keycloak.protect('realm:doctor'
 app.get('/profile/doctor/patient/:patientId/encounters', keycloak.protect('realm:doctor'), async (req, res) => {
   if (!validate(req, res)) return;
   const { patientId } = req.params;
-  const { doctorId, content, count, offset, order } = req.query as any;
+  const { doctorId, content, privateComments, count, offset, order } = req.query as any;
   var query = [
     { key: "doctorId", value: doctorId },
     { key: "content", value: content },
+    { key: "privateComments", value: privateComments },
     { key: "count", value: count },
     { key: "offset", value: offset },
     { key: "order", value: order }
   ]
   console.log(query);
   var queryParams = "";
-  if (doctorId || content || count || offset || order) {
+  if (doctorId || content || privateComments || count || offset || order) {
     queryParams = "?";
   }
   query.forEach(element => {
