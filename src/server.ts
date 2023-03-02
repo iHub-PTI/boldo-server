@@ -28,6 +28,8 @@ import {
   filterByAppointmentAvailability as filterByTypeOfAvailability
 } from './util/helpers'
 
+import {genericQueryParamsMaker} from "./util/utils";
+
 import { archiveAppointments } from './scripts/archiveAppointments'
 
 // We use axios for queries to the iHub Server
@@ -999,18 +1001,7 @@ app.get('/profile/doctor/appointments/:id/encounter/reports',
     if (!validate(req, res)) return
     const { id } = req.params
 
-    let reportsParam = ''
-    if (req.query.reports){
-      if (Array.isArray(req.query.reports)){
-        req.query.reports.forEach( (val: any) =>{
-          if (val) {
-            reportsParam = reportsParam + `reports=${val}&`
-          }
-        });
-      }else{
-        reportsParam = 'reports=' + req.query.reports
-      }
-    }
+    let reportsParam = genericQueryParamsMaker(req.query)
 
     try {
       const response = await axios.get(`/profile/doctor/appointments/${id}/encounter/reports?${reportsParam? `${reportsParam}`: ''}`, {
