@@ -998,21 +998,41 @@ app.get('/profile/doctor/appointments/:id/encounter/reports',
   keycloak.protect('realm:doctor'), async (req, res) => {
     if (!validate(req, res)) return
     const { id } = req.params
-    try {
-    const response = await axios.get(`/profile/doctor/appointments/${id}/encounter/reports?${req.query.reports ? `reports=${req.query.reports}`: ''}`, {
-        responseType: 'arraybuffer',
-        headers: {
-          Authorization: `Bearer ${getAccessToken(req)}`,
-          'Content-Type': 'application/json',
-          'Accept': 'application/pdf'
-        },
-      })
-      let filename = response.headers['content-disposition'].split('filename="')[1].split('.')[0] //obtains file name from header
 
-      res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `attachment; filename=${filename}.pdf`);
-      res.setHeader('Content-Length', response.data.length)
-      res.end(response.data)
+    let reportsParam = ''
+    if (req.query.reports){
+      if (Array.isArray(req.query.reports)){
+        req.query.reports.forEach( (val: any) =>{
+          if (val) {
+            reportsParam = reportsParam + `reports=${val}&`
+          }
+        });
+      }else{
+        reportsParam = 'reports=' + req.query.reports
+      }
+    }
+
+    try {
+      const response = await axios.get(`/profile/doctor/appointments/${id}/encounter/reports?${reportsParam? `${reportsParam}`: ''}`, {
+          responseType: 'arraybuffer',
+          headers: {
+            Authorization: `Bearer ${getAccessToken(req)}`,
+            'Content-Type': 'application/json',
+            'Accept': 'application/pdf'
+          },
+      })
+
+      if (response.status===200){ //There's a PDF in the buffer
+        let filename = response.headers['content-disposition']?
+            response.headers['content-disposition'].split('filename="')[1].split('.')[0]:'consulta' //obtains file name from header if exist
+
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename=${filename}.pdf`);
+        res.setHeader('Content-Length', response.data.length)
+        res.end(response.data)
+      }else{ // Other error codes: 204, 403, 404, 500
+        res.sendStatus(response.status);
+      }
     } catch (err) {
       handleError(req, res, err)
     }
