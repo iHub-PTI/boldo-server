@@ -196,6 +196,24 @@ app.put(
                 return;
               }             
             }
+
+            //overlay control between appointment type
+            if (openHoursOfDay.length > 1) {
+              for(var l = k+1; l < openHoursOfDay.length; l++) {             
+                const hourNext = openHoursOfDay[l];
+                if (
+                  (hourNext.start == hour.start && hourNext.appointmentType == hour.appointmentType) ||
+                  (hourNext.start == hour.start && (hourNext.appointmentType.includes(hour.appointmentType) || hour.appointmentType.includes(hourNext.appointmentType))) ||
+                  (hourNext.start < hour.start && hourNext.end > hour.start && (hourNext.appointmentType.includes(hour.appointmentType) || hour.appointmentType.includes(hourNext.appointmentType))) ||
+                  (hourNext.start > hour.start && hourNext.start < hour.end && (hourNext.appointmentType.includes(hour.appointmentType) || hour.appointmentType.includes(hourNext.appointmentType))) ||
+                  (hourNext.start > hour.start && hourNext.end <= hour.end && (hourNext.appointmentType.includes(hour.appointmentType) || hour.appointmentType.includes(hourNext.appointmentType)))
+                ) {
+                  update = false;
+                  handleError(req, res, { status: 400, message: "openHours setting overlay between appointment types for " + dayOfTheWeek[j] + " in organization " + blocks[index].idOrganization});
+                  return;
+                }               
+              }
+            } 
           }
         }  
       };
