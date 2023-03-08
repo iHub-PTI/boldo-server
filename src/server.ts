@@ -975,6 +975,63 @@ app.get('/profile/doctor/medications', query('content').isString().optional(), k
   }
 });
 
+//
+// patient's personal and family history
+//
+// Protected routes for managing patient's personal and family history
+// GET /profile/doctor/history - Read patient personal and family history
+// POST /profile/doctor/allergyIntolerance - create a new record of a detected patient allergy
+// DELETE /profile/doctor/allergyIntolerance - delete a record of patient allergy
+
+app.get('/profile/doctor/history', keycloak.protect('realm:doctor'), async (req: any, res) => {
+  if (!validate(req, res)) return
+
+  try {
+    const resp = await axios.get(`/profile/doctor/history${req.query.patient_id ? `?patient_id=${req.query.patient_id}` : ''}`, {
+      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+    })
+    res.status(resp.status).send(resp.data)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
+
+app.post('/profile/doctor/allergyIntolerance', keycloak.protect('realm:doctor'), async (req, res) => {
+  const payload = req.body
+  
+  try {
+    const resp = await axios.post('/profile/doctor/allergyIntolerance', payload, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    res.status(resp.status).send(resp.data)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
+
+
+app.delete(
+  '/profile/doctor/allergyIntolerance/:id',
+  keycloak.protect('realm:doctor'),
+  async (req, res) => {
+    try {
+      const { id} = req.params
+
+      const headers = {
+        Authorization: `Bearer ${getAccessToken(req)}`,
+      }
+
+      const resp = await axios.delete(
+        `/profile/doctor/allergyIntolerance/${id}`,
+        { headers }
+      )
+
+      res.status(resp.status).send(resp.data)
+    } catch (err) {
+      handleError(req, res, err)
+    }
+  }
+)
+
+
 
 //
 // ENCOUNTER:
