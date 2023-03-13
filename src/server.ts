@@ -688,6 +688,9 @@ app.get('/profile/caretaker/dependent/:idDependent/serviceRequest/:id', keycloak
 // GET  /profile/patient/organizations - list of organizations to which a patient has subscribed
 // POST /profile/patient/subscriptions - creates one or more patient subscription requests to organizations
 // PUT /profile/patient/organizations/priorities - edits the order of priorities for viewing patient organizations
+// GET /profile/patient/subscriptionRequests - list of patient subscription requests
+// DELETE /profile/patient/subscriptionRequest/:id - delete a patient's subscription request in pending status
+// DELETE  /profile/patient/organization/:id - delete a patient's relationship with a BMO organization
 
 app.get('/profile/patient', keycloak.protect('realm:patient'), async (req, res) => {
   try {
@@ -737,6 +740,61 @@ app.put('/profile/patient/organizations/priorities', keycloak.protect('realm:pat
     handleError(req, res, err)
   }
 })
+
+app.get('/profile/patient/subscriptionRequests', keycloak.protect('realm:patient'), async (req, res) => {
+  try {
+    const resp = await axios.get(`/profile/patient/subscriptionRequests${req.query.status ? `?status=${req.query.status}` : ''}`, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    res.status(resp.status).send(resp.data)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
+
+app.delete(
+  '/profile/patient/subscriptionRequest/:id',
+  keycloak.protect('realm:patient'),
+  async (req, res) => {
+    try {
+      const { id} = req.params
+
+      const headers = {
+        Authorization: `Bearer ${getAccessToken(req)}`,
+      }
+
+      const resp = await axios.delete(
+        `/profile/patient/subscriptionRequest/${id}`,
+        { headers }
+      )
+
+      res.status(resp.status).send(resp.data)
+    } catch (err) {
+      handleError(req, res, err)
+    }
+  }
+)
+
+app.delete(
+  '/profile/patient/organization/:id',
+  keycloak.protect('realm:patient'),
+  async (req, res) => {
+    try {
+      const { id} = req.params
+
+      const headers = {
+        Authorization: `Bearer ${getAccessToken(req)}`,
+      }
+
+      const resp = await axios.delete(
+        `/profile/patient/organization/${id}`,
+        { headers }
+      )
+
+      res.status(resp.status).send(resp.data)
+    } catch (err) {
+      handleError(req, res, err)
+    }
+  }
+)
 
 //
 // PATIENT PROFILE (AS DEPENDENT)
