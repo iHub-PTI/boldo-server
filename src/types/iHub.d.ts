@@ -22,7 +22,7 @@ export interface Doctor {
   addressDescription?: string
   specializations: string[]
   license?: string // not writable
-  organizationId: string
+  organizations: Organization[]
 }
 
 export interface Patient {
@@ -54,4 +54,13 @@ export interface Appointment {
   patientId: Patient['id']
   doctorId: Doctor['id']
   description: string
+  organizationId: string
+}
+
+export interface Organization {
+  id: string
+  active: boolean
+  name: string
+  type: string
+  nextAvailability: any
 }
