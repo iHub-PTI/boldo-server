@@ -1040,6 +1040,9 @@ app.get('/profile/doctor/medications', query('content').isString().optional(), k
 // GET /profile/doctor/history - Read patient personal and family history
 // POST /profile/doctor/allergyIntolerance - create a new record of a detected patient allergy
 // DELETE /profile/doctor/allergyIntolerance - delete a record of patient allergy
+// POST /profile/doctor/condition - create a new record of a detected patient pathology
+// DELETE /profile/doctor/condition - delete a record of patient pathology
+//
 
 app.get('/profile/doctor/history', keycloak.protect('realm:doctor'), async (req: any, res) => {
   if (!validate(req, res)) return
@@ -1079,6 +1082,41 @@ app.delete(
 
       const resp = await axios.delete(
         `/profile/doctor/allergyIntolerance/${id}`,
+        { headers }
+      )
+
+      res.status(resp.status).send(resp.data)
+    } catch (err) {
+      handleError(req, res, err)
+    }
+  }
+)
+
+app.post('/profile/doctor/condition', keycloak.protect('realm:doctor'), async (req, res) => {
+  const payload = req.body
+  
+  try {
+    const resp = await axios.post('/profile/doctor/condition', payload, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    res.status(resp.status).send(resp.data)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
+
+
+app.delete(
+  '/profile/doctor/condition/:id',
+  keycloak.protect('realm:doctor'),
+  async (req, res) => {
+    try {
+      const { id} = req.params
+
+      const headers = {
+        Authorization: `Bearer ${getAccessToken(req)}`,
+      }
+
+      const resp = await axios.delete(
+        `/profile/doctor/condition/${id}`,
         { headers }
       )
 
