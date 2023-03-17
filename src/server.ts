@@ -984,6 +984,7 @@ app.get('/profile/doctor/medications', query('content').isString().optional(), k
 // DELETE /profile/doctor/allergyIntolerance - delete a record of patient allergy
 // POST /profile/doctor/condition - create a new record of a detected patient pathology
 // DELETE /profile/doctor/condition - delete a record of patient pathology
+// POST /profile/doctor/procedure - create a new record of a detected patient procedure
 //
 
 app.get('/profile/doctor/history', keycloak.protect('realm:doctor'), async (req: any, res) => {
@@ -1069,7 +1070,16 @@ app.delete(
   }
 )
 
-
+app.post('/profile/doctor/procedure', keycloak.protect('realm:doctor'), async (req, res) => {
+  const payload = req.body
+  
+  try {
+    const resp = await axios.post('/profile/doctor/procedure', payload, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    res.status(resp.status).send(resp.data)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
 
 //
 // ENCOUNTER:
