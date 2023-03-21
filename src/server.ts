@@ -756,14 +756,9 @@ app.delete(
   async (req, res) => {
     try {
       const { id} = req.params
-
-      const headers = {
-        Authorization: `Bearer ${getAccessToken(req)}`,
-      }
-
       const resp = await axios.delete(
         `/profile/patient/subscriptionRequest/${id}`,
-        { headers }
+        { headers: { Authorization: `Bearer ${getAccessToken(req)}` } }
       )
 
       res.status(resp.status).send(resp.data)
@@ -779,14 +774,9 @@ app.delete(
   async (req, res) => {
     try {
       const { id} = req.params
-
-      const headers = {
-        Authorization: `Bearer ${getAccessToken(req)}`,
-      }
-
       const resp = await axios.delete(
         `/profile/patient/organization/${id}`,
-        { headers }
+        { headers: { Authorization: `Bearer ${getAccessToken(req)}` } }
       )
 
       res.status(resp.status).send(resp.data)
