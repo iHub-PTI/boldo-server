@@ -25,7 +25,8 @@ import {
   APPOINTMENT_WAIT_RESERVATION_LENGTH,
   calculateNextAvailability,
   createToken,
-  filterByAppointmentAvailability as filterByTypeOfAvailability
+  filterByAppointmentAvailability as filterByTypeOfAvailability,
+  doctorAvailability
 } from './util/helpers'
 
 import {genericQueryParamsMaker} from "./util/utils";
@@ -1672,7 +1673,7 @@ app.post(
     if (startDate < now) return res.status(400).send({ message: "'start' has to be at least "+ process.env.APPOINTMENT_WAIT_RESERVATION_LENGTH +" minutes in the future" })
 
     try {
-      const availabilities = await calculateAvailability(doctorId, organizationId, startDate, endDate, getAccessToken(req))
+      const availabilities = await calculateAvailability(doctorId, organizationId, startDate, endDate, getAccessToken(req), 'main', null)
       const available = availabilities.map(av => Date.parse(av["availability"])).includes(Date.parse(start))
       if (!available) return res.status(400).send({ message: 'timeslot is not available for booking' })
       const isAppType = availabilities.filter(av => Date.parse(av["availability"]) == Date.parse(start) && av["appointmentType"].includes(appointmentType)).length > 0
@@ -1811,7 +1812,7 @@ app.post(
     if (startDate < now) return res.status(400).send({ message: "'start' has to be at least "+process.env.APPOINTMENT_WAIT_RESERVATION_LENGTH+ " minutes in the future" })
 
     try {
-      const availabilities = await calculateAvailability(doctorId, organizationId, startDate, endDate, getAccessToken(req))
+      const availabilities = await calculateAvailability(doctorId, organizationId, startDate, endDate, getAccessToken(req), 'main', id)
       const available = availabilities.map(av => Date.parse(av["availability"])).includes(Date.parse(start))
       if (!available) return res.status(400).send({ message: 'timeslot is not available for booking' })
       const isAppType = availabilities.filter(av => Date.parse(av["availability"]) == Date.parse(start) && av["appointmentType"].includes(appointmentType)).length > 0
@@ -1887,7 +1888,7 @@ app.get('/profile/patient/doctors',
       const doctorsWithNextAvailability = await Promise.all(
         doctorsIHub.map(async doctor => {
             for (const o of doctor.organizations) {
-              o.nextAvailability = await calculateNextAvailability(doctor.id, o.id, getAccessToken(req), typeOfAvailabilityParam)
+              o.nextAvailability = await calculateNextAvailability(doctor.id, o.id, getAccessToken(req), typeOfAvailabilityParam, 'main', null)
             }
             return doctor
         })
@@ -1916,76 +1917,27 @@ app.get('/profile/patient/doctors/:id',
 })
 
 app.get(
-  '/profile/patient/doctors/:id/availability',
+  '/profile/patient/doctors/:idDoctor/availability',
   keycloak.protect('realm:patient'),
-  param('id').isString(),
+  param('idDoctor').isString(),
   query('organizationIdList').isString(),
   query(['start', 'end']).isISO8601(),
   query('appointmentType').isString().optional(),
   async (req: express.Request, res: express.Response) => {
-    if (!validate(req, res)) return
+    await doctorAvailability(req, res, 'main', getAccessToken(req));
+  }
+)
 
-    const { start, end, organizationIdList, appointmentType } = req.query
-    const { id: doctorId } = req.params
-
-    try {
-      let startDate = new Date(start as string)
-      let endDate = new Date(end as string)
-      let typeOfAvailabilityParam = "";
-      if (appointmentType) {
-        typeOfAvailabilityParam = appointmentType as string;
-      }
-
-      const now = new Date()
-      now.setMilliseconds(now.getMilliseconds() + APPOINTMENT_WAIT_RESERVATION_LENGTH)
-
-      if (startDate < now) startDate = now
-      if (endDate < startDate)
-        return res.status(400).send({ message: 'End Date has to be larger than start and in the future' })
-
-      if (differenceInDays(endDate, startDate) > 30) {
-        endDate = new Date(startDate)
-        endDate.setDate(endDate.getDate() + 31)
-      }
-
-      const organizations = (organizationIdList as string).split(",");
-      console.log(organizations)
-
-      let availabilitiesBlocks: any[] = [];
-      let organizationsId: any[] = [];
-      const commonOrganizations = await axios.get<iHub.Organization[]>(`/profile/patient/doctors/${doctorId}/common-organizations`, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
-      console.log(commonOrganizations.data);
-      for (const idOrganization of organizations) {
-        console.log(commonOrganizations.data.map(org => org.id).includes(idOrganization));
-        console.log(idOrganization)
-        if (commonOrganizations.data.map(org => org.id).includes(idOrganization)) {
-          organizationsId.push(idOrganization);
-        }
-      }
-
-      console.log(organizationsId)
-      
-      try {
-        for (const idOrganization of organizationsId) {
-          let availabilities = await calculateAvailability(doctorId, idOrganization, startDate, endDate, getAccessToken(req));
-          if (typeOfAvailabilityParam != "") {
-            availabilities = availabilities.filter((w: any) => w.appointmentType.includes(typeOfAvailabilityParam));
-          }
-          const nextAvailability = await calculateNextAvailability(doctorId, idOrganization, getAccessToken(req), typeOfAvailabilityParam);          
-          availabilitiesBlocks.push({ idOrganization: idOrganization, availabilities, nextAvailability });  
-        }
-      } catch (err) {
-        console.log(err)
-      }
-
-      // FIXME: nextAvailability is runing the whole loop again.
-      // Could be done in one loop in the case that start = now
-      // Also starts two workers. Could start one
-      console.log("final results availability: ", availabilitiesBlocks);
-      res.send(availabilitiesBlocks)
-    } catch (err) {
-      handleError(req, res, err)
-    }
+app.get(
+  '/profile/caretaker/dependent/:idDependet/doctors/:idDoctor/availability',
+  keycloak.protect('realm:patient'),
+  param('idDependet').isString(),
+  param('idDoctor').isString(),
+  query('organizationIdList').isString(),
+  query(['start', 'end']).isISO8601(),
+  query('appointmentType').isString().optional(),
+  async (req: express.Request, res: express.Response) => {
+    await doctorAvailability(req, res, 'dependent', getAccessToken(req));
   }
 )
 
