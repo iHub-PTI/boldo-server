@@ -986,6 +986,7 @@ app.get('/profile/doctor/medications', query('content').isString().optional(), k
 // DELETE /profile/doctor/condition - delete a record of patient pathology
 // POST /profile/doctor/procedure - create a new record of a detected patient procedure
 // POST /profile/doctor/familyMemberHistory - create a new record of a pathology of a patient's family member
+// POST /profile/doctor/observation - create a new record of a gynecology information about patient
 //
 
 app.get('/profile/doctor/history', keycloak.protect('realm:doctor'), async (req: any, res) => {
@@ -1087,6 +1088,17 @@ app.post('/profile/doctor/familyMemberHistory', keycloak.protect('realm:doctor')
   
   try {
     const resp = await axios.post('/profile/doctor/familyMemberHistory', payload, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    res.status(resp.status).send(resp.data)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
+
+app.post('/profile/doctor/observation', keycloak.protect('realm:doctor'), async (req, res) => {
+  const payload = req.body
+  
+  try {
+    const resp = await axios.post('/profile/doctor/observation', payload, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
     res.status(resp.status).send(resp.data)
   } catch (err) {
     handleError(req, res, err)
