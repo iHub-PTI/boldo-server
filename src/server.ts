@@ -1975,7 +1975,7 @@ app.get(
   '/profile/patient/doctors/:idDoctor/availability',
   keycloak.protect('realm:patient'),
   param('idDoctor').isString(),
-  query('organizationIdList').isString(),
+  query('organizationIdList').isString().optional(),
   query(['start', 'end']).isISO8601(),
   query('appointmentType').isString().optional(),
   async (req: express.Request, res: express.Response) => {
@@ -1988,7 +1988,7 @@ app.get(
   keycloak.protect('realm:patient'),
   param('idDependet').isString(),
   param('idDoctor').isString(),
-  query('organizationIdList').isString(),
+  query('organizationIdList').isString().optional(),
   query(['start', 'end']).isISO8601(),
   query('appointmentType').isString().optional(),
   async (req: express.Request, res: express.Response) => {

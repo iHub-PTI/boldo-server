@@ -241,9 +241,6 @@ export async function doctorAvailability(req: express.Request, res: express.Resp
       endDate.setDate(endDate.getDate() + 31)
     }
 
-    const organizations = (organizationIdList as string).split(",");
-    console.log(organizations)
-
     let availabilitiesBlocks: any[] = [];
     let organizationsId: any[] = [];
     let path = `/profile/patient/doctors/${doctorId}/common-organizations`;
@@ -252,14 +249,19 @@ export async function doctorAvailability(req: express.Request, res: express.Resp
     } 
     const commonOrganizations = await axios.get<iHub.Organization[]>(path, { headers: { Authorization: `Bearer ${accessToken}` } })
     console.log(commonOrganizations.data);
-    for (const idOrganization of organizations) {
-      console.log(commonOrganizations.data.map(org => org.id).includes(idOrganization));
-      console.log(idOrganization)
-      if (commonOrganizations.data.map(org => org.id).includes(idOrganization)) {
-        organizationsId.push(idOrganization);
-      }
-    }
 
+    if (organizationIdList) {
+      const organizations = (organizationIdList as string).split(",");
+      console.log(organizations)
+  
+      for (const idOrganization of organizations) {
+        if (commonOrganizations.data.map(org => org.id).includes(idOrganization)) {
+          organizationsId.push(idOrganization);
+        }
+      }
+    } else {
+      organizationsId = commonOrganizations.data.map(org => org.id);
+    }
     console.log(organizationsId)
     
     try {
