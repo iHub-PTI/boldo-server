@@ -822,7 +822,7 @@ app.get('/profile/caretaker/dependent/:idDependent/organizations', keycloak.prot
     handleError(req, res, err)
   }
 })
-app.get('/profile/caretaker/dependent/{idDependent}/doctors',
+app.get('/profile/caretaker/dependent/:idDependent/doctors',
   keycloak.protect('realm:patient'),
   async (req, res) => {
     const { idDependent } = req.params
