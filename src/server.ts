@@ -981,12 +981,13 @@ app.get('/profile/doctor/medications', query('content').isString().optional(), k
 // Protected routes for managing patient's personal and family history
 // GET /profile/doctor/history - Read patient personal and family history
 // POST /profile/doctor/allergyIntolerance - create a new record of a detected patient allergy
-// DELETE /profile/doctor/allergyIntolerance - delete a record of patient allergy
+// PUT /profile/doctor/allergyIntolerance/:id - performs an update on a patient's allergy status corresponding to a logical deletion
 // POST /profile/doctor/condition - create a new record of a detected patient pathology
-// DELETE /profile/doctor/condition - delete a record of patient pathology
+// PUT /profile/doctor/condition/:id - performs an update on a patient's condition status corresponding to a logical deletion
 // POST /profile/doctor/procedure - create a new record of a detected patient procedure
-// PUT /profile/doctor/procedure/:id - performs an update on a patient's procedure corresponding to a logical deletion due to status update
+// PUT /profile/doctor/procedure/:id - performs an update on a patient's procedure status corresponding to a logical deletion
 // POST /profile/doctor/familyMemberHistory - create a new record of a pathology of a patient's family member
+// PUT /profile/doctor/familyMemberHistory/:id - performs an update on a patient's family member history status corresponding to a logical deletion
 // POST /profile/doctor/observation - create a new record of a gynecology information about patient
 //
 
@@ -1015,28 +1016,18 @@ app.post('/profile/doctor/allergyIntolerance', keycloak.protect('realm:doctor'),
 })
 
 
-app.delete(
-  '/profile/doctor/allergyIntolerance/:id',
-  keycloak.protect('realm:doctor'),
-  async (req, res) => {
-    try {
-      const { id} = req.params
-
-      const headers = {
-        Authorization: `Bearer ${getAccessToken(req)}`,
-      }
-
-      const resp = await axios.delete(
-        `/profile/doctor/allergyIntolerance/${id}`,
-        { headers }
-      )
-
-      res.status(resp.status).send(resp.data)
-    } catch (err) {
-      handleError(req, res, err)
-    }
+app.put('/profile/doctor/allergyIntolerance/:id', keycloak.protect('realm:doctor'), async (req, res) => {
+  const { id } = req.params
+  const payload = req.body
+  try {
+    const resp = await axios.put(`/profile/doctor/allergyIntolerance/${id}`, payload, {
+      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+    })
+    res.status(resp.status).send(resp.data)
+  } catch (err) {
+    handleError(req, res, err)
   }
-)
+})
 
 app.post('/profile/doctor/condition', keycloak.protect('realm:doctor'), async (req, res) => {
   const payload = req.body
@@ -1050,28 +1041,18 @@ app.post('/profile/doctor/condition', keycloak.protect('realm:doctor'), async (r
 })
 
 
-app.delete(
-  '/profile/doctor/condition/:id',
-  keycloak.protect('realm:doctor'),
-  async (req, res) => {
-    try {
-      const { id} = req.params
-
-      const headers = {
-        Authorization: `Bearer ${getAccessToken(req)}`,
-      }
-
-      const resp = await axios.delete(
-        `/profile/doctor/condition/${id}`,
-        { headers }
-      )
-
-      res.status(resp.status).send(resp.data)
-    } catch (err) {
-      handleError(req, res, err)
-    }
+app.put('/profile/doctor/condition/:id', keycloak.protect('realm:doctor'), async (req, res) => {
+  const { id } = req.params
+  const payload = req.body
+  try {
+    const resp = await axios.put(`/profile/doctor/condition/${id}`, payload, {
+      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+    })
+    res.status(resp.status).send(resp.data)
+  } catch (err) {
+    handleError(req, res, err)
   }
-)
+})
 
 app.post('/profile/doctor/procedure', keycloak.protect('realm:doctor'), async (req, res) => {
   const payload = req.body
@@ -1102,6 +1083,19 @@ app.post('/profile/doctor/familyMemberHistory', keycloak.protect('realm:doctor')
   
   try {
     const resp = await axios.post('/profile/doctor/familyMemberHistory', payload, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    res.status(resp.status).send(resp.data)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
+
+app.put('/profile/doctor/familyMemberHistory/:id', keycloak.protect('realm:doctor'), async (req, res) => {
+  const { id } = req.params
+  const payload = req.body
+  try {
+    const resp = await axios.put(`/profile/doctor/familyMemberHistory/${id}`, payload, {
+      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+    })
     res.status(resp.status).send(resp.data)
   } catch (err) {
     handleError(req, res, err)
