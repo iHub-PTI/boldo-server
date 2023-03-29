@@ -791,7 +791,11 @@ app.delete(
 // PATIENT PROFILE (AS DEPENDENT)
 // GET /profile/patient/caretakers 
 // PUT /profile/patient/inactivate/caretaker/:id
-// GET /profile/caretaker/dependent/:is/organizations - list of organizations to which a dependent has subscribed
+// GET /profile/caretaker/dependent/:id/organizations - list of organizations to which a dependent has subscribed
+// POST /profile/caretaker/dependent/:id/subscriptions - creates one or more dependent subscription requests to organizations
+// GET /profile/caretaker/dependent/:id/subscriptionRequests - list of dependent subscription requests
+// DELETE /profile/caretaker/dependent/:id/subscriptionRequest/:id - delete a dependent's subscription request in pending status
+// DELETE /profile/caretaker/dependent/:id/organization/:id - delete a dependent's relationship with a BMO organization
 
 app.get('/profile/patient/caretakers', keycloak.protect('realm:patient'), async (req, res) => {
   try {
@@ -816,12 +820,13 @@ app.put('/profile/patient/inactivate/caretaker/:id', keycloak.protect('realm:pat
 app.get('/profile/caretaker/dependent/:idDependent/organizations', keycloak.protect('realm:patient'), async (req, res) => {
   const { idDependent } = req.params
   try {
-    const resp = await axios.get(`/profile/caretaker/dependent/${idDependent}/organizations`, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    const resp = await axios.get(`/profile/caretaker/dependent/${idDependent}/organizations${req.query.subscribed ? `?subscribed=${req.query.subscribed}` : ''}`, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
     res.status(resp.status).send(resp.data)
   } catch (err) {
     handleError(req, res, err)
   }
 })
+
 app.get('/profile/caretaker/dependent/:idDependent/doctors',
   keycloak.protect('realm:patient'),
   async (req, res) => {
@@ -874,6 +879,63 @@ app.get('/profile/caretaker/dependent/:idDependent/doctors',
       handleError(req, res, err)
     }
   })
+
+app.post('/profile/caretaker/dependent/:idDependent/subscriptions', keycloak.protect('realm:patient'), async (req, res) => {
+  const payload = req.body
+  const { idDependent } = req.params
+  try {
+    const resp = await axios.post(`/profile/caretaker/dependent/${idDependent}/subscriptions`, payload, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    res.status(resp.status).send(resp.data)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
+
+app.get('/profile/caretaker/dependent/:idDependent/subscriptionRequests', keycloak.protect('realm:patient'), async (req, res) => {
+  try {
+    const { idDependent } = req.params
+    const resp = await axios.get(`/profile/caretaker/dependent/${idDependent}/subscriptionRequests${req.query.status ? `?status=${req.query.status}` : ''}`, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    res.status(resp.status).send(resp.data)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
+
+app.delete(
+  '/profile/caretaker/dependent/:idDependent/subscriptionRequest/:id',
+  keycloak.protect('realm:patient'),
+  async (req, res) => {
+    try {
+      const { idDependent, id} = req.params
+      const resp = await axios.delete(
+        `/profile/caretaker/dependent/${idDependent}/subscriptionRequest/${id}`,
+        { headers: { Authorization: `Bearer ${getAccessToken(req)}` } }
+      )
+
+      res.status(resp.status).send(resp.data)
+    } catch (err) {
+      handleError(req, res, err)
+    }
+  }
+)
+
+app.delete(
+  '/profile/caretaker/dependent/:idDependent/organization/:id',
+  keycloak.protect('realm:patient'),
+  async (req, res) => {
+    try {
+      const { idDependent, id} = req.params
+      const resp = await axios.delete(
+        `/profile/caretaker/dependent/${idDependent}/organization/${id}`,
+        { headers: { Authorization: `Bearer ${getAccessToken(req)}` } }
+      )
+
+      res.status(resp.status).send(resp.data)
+    } catch (err) {
+      handleError(req, res, err)
+    }
+  }
+)
 //
 // CARETAKER PROFILE:
 // GET /profile/caretaker/dependents
