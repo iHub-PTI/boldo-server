@@ -741,6 +741,15 @@ app.put('/profile/patient/organizations/priorities', keycloak.protect('realm:pat
     handleError(req, res, err)
   }
 })
+app.get('/profile/patient/lastEncounter/doctors/:idDoctor', keycloak.protect('realm:patient'), async (req, res) => {
+  const { idDoctor } = req.params
+  try {
+    const resp = await axios.get(`/profile/patient/lastEncounter/doctors/${idDoctor}`, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    res.status(resp.status).send(resp.data)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
 
 app.get('/profile/patient/subscriptionRequests', keycloak.protect('realm:patient'), async (req, res) => {
   try {
