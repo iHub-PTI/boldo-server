@@ -744,9 +744,8 @@ app.put('/profile/patient/organizations/priorities', keycloak.protect('realm:pat
 app.get('/profile/patient/lastEncounter/doctors/:idDoctor', keycloak.protect('realm:patient'), async (req, res) => {
   const { idDoctor } = req.params
   try {
-    const queryString = req.originalUrl.split('?')[1]
-
-    const resp = await axios.get(`/profile/patient/lastEncounter/doctors/${idDoctor}${queryString ? `?${queryString}` : ''}`,
+    const queryString = req.query.includeDependents!=undefined?req.query.includeDependents:true;
+    const resp = await axios.get(`/profile/patient/lastEncounter/doctors/${idDoctor}?includeDependents=${queryString}`,
       {
         headers: { Authorization: `Bearer ${getAccessToken(req)}` }
       }
