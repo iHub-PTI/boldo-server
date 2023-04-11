@@ -744,7 +744,12 @@ app.put('/profile/patient/organizations/priorities', keycloak.protect('realm:pat
 app.get('/profile/patient/lastEncounter/doctors/:idDoctor', keycloak.protect('realm:patient'), async (req, res) => {
   const { idDoctor } = req.params
   try {
-    const resp = await axios.get(`/profile/patient/lastEncounter/doctors/${idDoctor}`, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    const queryString = req.query.includeDependents!=undefined?req.query.includeDependents:true;
+    const resp = await axios.get(`/profile/patient/lastEncounter/doctors/${idDoctor}?includeDependents=${queryString}`,
+      {
+        headers: { Authorization: `Bearer ${getAccessToken(req)}` }
+      }
+    )
     res.status(resp.status).send(resp.data)
   } catch (err) {
     handleError(req, res, err)
@@ -1124,6 +1129,16 @@ app.post('/profile/caretaker/dependent/add/qrcode', query('qr').isString().notEm
     handleError(req, res, err)
   }
 });
+app.get('/profile/caretaker/dependent/:idDependent/lastEncounter/doctor/:idDoctor', keycloak.protect('realm:patient'), async (req, res) => {
+  const { idDependent ,idDoctor} = req.params
+  try {
+    const resp = await axios.get(`/profile/caretaker/dependent/${idDependent}/lastEncounter/doctor/${idDoctor}`, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    res.status(resp.status).send(resp.data)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
+
 
 //
 // MEDICATIONS:
