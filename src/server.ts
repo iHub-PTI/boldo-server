@@ -2076,7 +2076,19 @@ app.get('/profile/patient/doctors/:id',
       handleError(req, res, err)
     }
 })
-
+app.get('/profile/patient/recent/doctors', keycloak.protect('realm:patient'), async (req, res) => {
+    try {
+      const resp = await axios.get(
+        `/profile/patient/recent/doctors`,
+        {
+          headers: { Authorization: `Bearer ${getAccessToken(req)}` }
+        }
+      )
+      res.send(resp.data)
+    } catch (err) {
+      handleError(req, res, err)
+    }
+  })
 app.get(
   '/profile/patient/doctors/:idDoctor/availability',
   keycloak.protect('realm:patient'),
