@@ -2084,7 +2084,7 @@ app.get('/profile/patient/recent/doctors', keycloak.protect('realm:patient'), as
           headers: { Authorization: `Bearer ${getAccessToken(req)}` }
         }
       )
-      res.send(resp.data)
+      res.status(resp.status).send(resp.data)
     } catch (err) {
       handleError(req, res, err)
     }
