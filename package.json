@@ -34,7 +34,7 @@
     "express-validator": "^6.7.0",
     "jsonwebtoken": "^8.5.1",
     "jwks-rsa": "^1.10.1",
-    "keycloak-connect": "^11.0.2",
+    "keycloak-connect": "^20.0.3",
     "mongoose": "^5.11.5",
     "node-fetch": "^2.6.1",
     "querystring": "^0.2.0",
