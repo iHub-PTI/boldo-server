@@ -33,6 +33,13 @@ import {genericQueryParamsMaker} from "./util/utils";
 
 import { archiveAppointments } from './scripts/archiveAppointments'
 
+var apm = require('elastic-apm-node').start({
+  serviceName: 'boldo-server',
+  secretToken: 'changeme',
+  serverUrl: 'http://apm-server-apm-server.elastic-system:8200',
+  environment: 'production'
+});
+
 // We use axios for queries to the iHub Server
 axios.defaults.baseURL = process.env.IHUB_ADDRESS!
 
