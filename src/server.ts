@@ -33,7 +33,7 @@ import {genericQueryParamsMaker} from "./util/utils";
 
 import { archiveAppointments } from './scripts/archiveAppointments'
 
-var apm = require('elastic-apm-node').start({
+require('elastic-apm-node').start({
   serviceName: 'boldo-server',
   secretToken: 'changeme',
   serverUrl: 'http://apm-server-apm-server.elastic-system:8200',
