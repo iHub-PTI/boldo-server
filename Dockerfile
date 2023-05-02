@@ -1,4 +1,4 @@
-FROM node:14.15.1
+FROM node:14.21.3-bullseye
 ENV PORT=8008
 RUN mkdir -p /usr/src/app
 WORKDIR /usr/src/app
