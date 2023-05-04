@@ -2083,6 +2083,34 @@ app.get('/profile/patient/doctors/:id',
       handleError(req, res, err)
     }
 })
+app.get('/profile/patient/favorite/doctors/', keycloak.protect('realm:patient'), async (req, res) => {
+  try {
+    const queryString = req.originalUrl.split('?')[1]
+    const resp = await axios.get(
+      `/profile/patient/favorite/doctors${queryString ? `?${queryString}` : ''}`,
+      {
+        headers: { Authorization: `Bearer ${getAccessToken(req)}` }
+      }
+    )
+    res.status(resp.status).send(resp.data)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
+app.put('/profile/patient/favorite/doctor/:idDoctor', keycloak.protect('realm:patient'), async (req, res) => {
+  const queryString = req.query.addFavorite!=undefined?req.query.addFavorite:true;
+  try {
+    const resp = await axios.get(
+      `/profile/patient/favorite/doctor/${req.params.idDoctor}?addFavorite=${queryString}`,
+      {
+        headers: { Authorization: `Bearer ${getAccessToken(req)}` }
+      }
+    )
+    res.status(resp.status).send(resp.data)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
 
 app.get(
   '/profile/patient/doctors/:idDoctor/availability',
