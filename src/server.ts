@@ -1,5 +1,12 @@
 import 'dotenv/config'
 
+require('elastic-apm-node').start({
+  serviceName: 'boldo-server',
+  secretToken: process.env.APM_SERVER_SECRET,
+  serverUrl: process.env.APM_SERVER_URL,
+  environment: process.env.APM_SERVER_ENVIRONMENT
+});
+
 import express from 'express'
 import cookieParser from 'cookie-parser'
 import cors from 'cors'
