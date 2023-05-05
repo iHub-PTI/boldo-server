@@ -2100,8 +2100,8 @@ app.get('/profile/patient/favorite/doctors/', keycloak.protect('realm:patient'),
 app.put('/profile/patient/favorite/doctor/:idDoctor', keycloak.protect('realm:patient'), async (req, res) => {
   const queryString = req.query.addFavorite!=undefined?req.query.addFavorite:true;
   try {
-    const resp = await axios.get(
-      `/profile/patient/favorite/doctor/${req.params.idDoctor}?addFavorite=${queryString}`,
+    const resp = await axios.put(
+      `/profile/patient/favorite/doctor/${req.params.idDoctor}?addFavorite=${queryString}`,{},
       {
         headers: { Authorization: `Bearer ${getAccessToken(req)}` }
       }
