@@ -1,5 +1,12 @@
 import 'dotenv/config'
 
+require('elastic-apm-node').start({
+  serviceName: 'boldo-server',
+  secretToken: process.env.APM_SERVER_SECRET,
+  serverUrl: process.env.APM_SERVER_URL,
+  environment: process.env.APM_SERVER_ENVIRONMENT
+});
+
 import express from 'express'
 import cookieParser from 'cookie-parser'
 import cors from 'cors'
@@ -602,7 +609,7 @@ app.get('/profile/doctor/serviceRequests', keycloak.protect('realm:doctor'), asy
   if (!validate(req, res)) return
   try {
     console.log(`/profile/doctor/serviceRequests?patient_id=${req.query.patient_id}${req.query.page ? `&page=${req.query.page}` : ''}${req.query.count ? `&count=${req.query.count}` : ''}${req.query.category ? `&category=${req.query.category}` : ''}${req.query.dateOrder ? `&dateOrder=${req.query.dateOrder}` : ''}`)
-    const resp = await axios.get(`/profile/doctor/serviceRequests?patient_id=${req.query.patient_id}${req.query.page ? `&page=${req.query.page}` : ''}${req.query.count ? `&count=${req.query.count}` : ''}${req.query.category ? `&category=${req.query.category}` : ''}${req.query.dateOrder ? `&dateOrder=${req.query.dateOrder}` : ''}`,
+    const resp = await axios.get(`/profile/doctor/serviceRequests?patient_id=${req.query.patient_id}${req.query.page ? `&page=${req.query.page}` : ''}${req.query.count ? `&count=${req.query.count}` : ''}${req.query.category ? `&category=${req.query.category}` : ''}${req.query.dateOrder ? `&dateOrder=${req.query.dateOrder}` : ''}${req.query.orderNumber ? `&orderNumber=${req.query.orderNumber}` : ''}`,
       { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
     res.status(resp.status).send(resp.data)
   } catch (err) {
@@ -2089,6 +2096,35 @@ app.get('/profile/patient/recent/doctors', keycloak.protect('realm:patient'), as
       handleError(req, res, err)
     }
   })
+app.get('/profile/patient/favorite/doctors/', keycloak.protect('realm:patient'), async (req, res) => {
+  try {
+    const queryString = req.originalUrl.split('?')[1]
+    const resp = await axios.get(
+      `/profile/patient/favorite/doctors${queryString ? `?${queryString}` : ''}`,
+      {
+        headers: { Authorization: `Bearer ${getAccessToken(req)}` }
+      }
+    )
+    res.status(resp.status).send(resp.data)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
+app.put('/profile/patient/favorite/doctor/:idDoctor', keycloak.protect('realm:patient'), async (req, res) => {
+  const queryString = req.query.addFavorite!=undefined?req.query.addFavorite:true;
+  try {
+    const resp = await axios.put(
+      `/profile/patient/favorite/doctor/${req.params.idDoctor}?addFavorite=${queryString}`,{},
+      {
+        headers: { Authorization: `Bearer ${getAccessToken(req)}` }
+      }
+    )
+    res.status(resp.status).send(resp.data)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
+
 app.get(
   '/profile/patient/doctors/:idDoctor/availability',
   keycloak.protect('realm:patient'),
