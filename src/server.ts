@@ -33,7 +33,8 @@ import {
   calculateNextAvailability,
   createToken,
   filterByAppointmentAvailability as filterByTypeOfAvailability,
-  doctorAvailability
+  doctorAvailability,
+  getDoctorsWithAvailability
 } from './util/helpers'
 
 import {genericQueryParamsMaker} from "./util/utils";
@@ -862,54 +863,10 @@ app.get('/profile/caretaker/dependent/:idDependent/organizations', keycloak.prot
 app.get('/profile/caretaker/dependent/:idDependent/doctors',
   keycloak.protect('realm:patient'),
   async (req, res) => {
-    const { idDependent } = req.params
-    try {
-      const queryString = req.originalUrl.split('?')[1]
-
-      const resp = await axios.get<{ items: iHub.Doctor[]; total: number }>(
-        `/profile/caretaker/dependent/${idDependent}/doctors${queryString ? `?${queryString}` : ''}`,
-        {
-          headers: { Authorization: `Bearer ${getAccessToken(req)}` }
-        }
-      )
-      if(resp.data.items==null){
-        res.send({ items: [], total:0 })
-      }else{
-
-      let doctorsIHub = resp.data.items;
-      let typeOfAvailabilityParam = "";
-      if (queryString){
-        //creates a map from queryString
-        const qMap = queryString.split('&').reduce((mapAccumulator, obj) => {
-          let queryK = obj.split('=')[0]
-          let queryV = obj.split('=')[1]
-          mapAccumulator.set(queryK, queryV);
-          return mapAccumulator;
-        }, new Map());
-        if (qMap.has('appointmentType') && qMap.get('appointmentType')){
-          typeOfAvailabilityParam = qMap.get('appointmentType');
-          //filter doctors by checking if they dispose with a schedule with the type of Appointment specified
-          doctorsIHub = await filterByTypeOfAvailability(resp.data.items, qMap.get('appointmentType'))
-        }
-      }
-
-      // FIXME: this currently creates one worker per doctor with huge overhead.
-      // Probably best to move this into a own worker.
-
-      const doctorsWithNextAvailability = await Promise.all(
-        doctorsIHub.map(async doctor => {
-          for (const o of doctor.organizations) {
-            o.nextAvailability = await calculateNextAvailability(doctor.id, o.id, getAccessToken(req), typeOfAvailabilityParam, 'main', null)
-          }
-          return doctor
-        })
-      )
-
-      res.send({ items: doctorsWithNextAvailability, total: doctorsIHub.length })
-      }
-    } catch (err) {
-      handleError(req, res, err)
-    }
+    const { idDependent } = req.params;
+    const queryString = req.originalUrl.split('?')[1];
+    const endpoint = `/profile/caretaker/dependent/${idDependent}/doctors${queryString ? `?${queryString}` : ''}`;
+    await getDoctorsWithAvailability(req, res, endpoint, queryString, getAccessToken(req));
   })
 
 app.post('/profile/caretaker/dependent/:idDependent/subscriptions', keycloak.protect('realm:patient'), async (req, res) => {
@@ -2031,52 +1988,9 @@ app.post('/profile/caretaker/appointments/cancel/:id',
 app.get('/profile/patient/doctors',
   keycloak.protect('realm:patient'),
   async (req, res) => {
-    try {
-      const queryString = req.originalUrl.split('?')[1]
-
-      const resp = await axios.get<{ items: iHub.Doctor[]; total: number }>(
-        `/profile/patient/doctors${queryString ? `?${queryString}` : ''}`, 
-        {
-          headers: { Authorization: `Bearer ${getAccessToken(req)}` }
-        }
-      )
-      if(resp.data.items==null) {
-        res.send({ items: [], total: 0 })
-      }else{
-      let doctorsIHub = resp.data.items;
-      let typeOfAvailabilityParam = "";
-      if (queryString){
-          //creates a map from queryString
-          const qMap = queryString.split('&').reduce((mapAccumulator, obj) => {
-            let queryK = obj.split('=')[0]
-            let queryV = obj.split('=')[1]
-            mapAccumulator.set(queryK, queryV);
-            return mapAccumulator;
-          }, new Map());
-        if (qMap.has('appointmentType') && qMap.get('appointmentType')){
-          typeOfAvailabilityParam = qMap.get('appointmentType');
-          //filter doctors by checking if they dispose with a schedule with the type of Appointment specified 
-          doctorsIHub = await filterByTypeOfAvailability(resp.data.items, qMap.get('appointmentType'))
-        }
-      }
-
-      // FIXME: this currently creates one worker per doctor with huge overhead.
-      // Probably best to move this into a own worker.
-
-      const doctorsWithNextAvailability = await Promise.all(
-        doctorsIHub.map(async doctor => {
-            for (const o of doctor.organizations) {
-              o.nextAvailability = await calculateNextAvailability(doctor.id, o.id, getAccessToken(req), typeOfAvailabilityParam, 'main', null)
-            }
-            return doctor
-        })
-      )
-
-      res.send({ items: doctorsWithNextAvailability, total: doctorsIHub.length })
-    }
-    } catch (err) {
-      handleError(req, res, err)
-    }
+    const queryString = req.originalUrl.split('?')[1]
+    const endpoint = `/profile/patient/doctors${queryString ? `?${queryString}` : ''}`;
+    await getDoctorsWithAvailability(req, res, endpoint, queryString, getAccessToken(req));
   })
 
 app.get('/profile/patient/doctors/:id',
@@ -2094,34 +2008,19 @@ app.get('/profile/patient/doctors/:id',
       handleError(req, res, err)
     }
 })
+
 app.get('/profile/patient/recent/doctors', keycloak.protect('realm:patient'), async (req, res) => {
-    try {
-      const queryString = req.originalUrl.split('?')[1]
-      const resp = await axios.get(
-        `/profile/patient/recent/doctors${queryString ? `?${queryString}` : ''}`,
-        {
-          headers: { Authorization: `Bearer ${getAccessToken(req)}` }
-        }
-      )
-      res.status(resp.status).send(resp.data)
-    } catch (err) {
-      handleError(req, res, err)
-    }
-  })
-app.get('/profile/patient/favorite/doctors/', keycloak.protect('realm:patient'), async (req, res) => {
-  try {
-    const queryString = req.originalUrl.split('?')[1]
-    const resp = await axios.get(
-      `/profile/patient/favorite/doctors${queryString ? `?${queryString}` : ''}`,
-      {
-        headers: { Authorization: `Bearer ${getAccessToken(req)}` }
-      }
-    )
-    res.status(resp.status).send(resp.data)
-  } catch (err) {
-    handleError(req, res, err)
-  }
+  const queryString = req.originalUrl.split('?')[1]
+  const endpoint = `/profile/patient/recent/doctors${queryString ? `?${queryString}` : ''}`;
+  await getDoctorsWithAvailability(req, res, endpoint, queryString, getAccessToken(req));
 })
+
+app.get('/profile/patient/favorite/doctors/', keycloak.protect('realm:patient'), async (req, res) => {
+  const queryString = req.originalUrl.split('?')[1]
+  const endpoint = `/profile/patient/favorite/doctors${queryString ? `?${queryString}` : ''}`;
+  await getDoctorsWithAvailability(req, res, endpoint, queryString, getAccessToken(req));
+})
+
 app.put('/profile/patient/favorite/doctor/:idDoctor', keycloak.protect('realm:patient'), async (req, res) => {
   const queryString = req.query.addFavorite!=undefined?req.query.addFavorite:true;
   try {
