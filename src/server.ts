@@ -1970,6 +1970,34 @@ app.post(
   }
 )
 
+app.get('/profile/caretaker/dependent/:idDependent/recent/doctors', keycloak.protect('realm:patient'), async (req, res) => {
+  const queryString = req.originalUrl.split('?')[1]
+  const { idDependent } = req.params
+  const endpoint = `/profile/caretaker/dependent/${idDependent}/recent/doctors${queryString ? `?${queryString}` : ''}`;
+  await getDoctorsWithAvailability(req, res, endpoint, queryString, getAccessToken(req));
+})
+
+app.get('/profile/caretaker/dependent/:idDependent/favorite/doctors/', keycloak.protect('realm:patient'), async (req, res) => {
+  const queryString = req.originalUrl.split('?')[1]
+  const { idDependent } = req.params
+  const endpoint = `/profile/caretaker/dependent/${idDependent}/favorite/doctors${queryString ? `?${queryString}` : ''}`;
+  await getDoctorsWithAvailability(req, res, endpoint, queryString, getAccessToken(req));
+})
+
+app.put('/profile/caretaker/dependent/:idDependent/favorite/doctor/:idDoctor', keycloak.protect('realm:patient'), async (req, res) => {
+  const queryString = req.query.addFavorite!=undefined?req.query.addFavorite:true;
+  try {
+    const resp = await axios.put(
+      `/profile/caretaker/dependent/${req.params.idDependent}/favorite/doctor/${req.params.idDoctor}?addFavorite=${queryString}`,{},
+      {
+        headers: { Authorization: `Bearer ${getAccessToken(req)}` }
+      }
+    )
+    res.status(resp.status).send(resp.data)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
 
 
 app.post('/profile/caretaker/appointments/cancel/:id',
