@@ -2188,10 +2188,12 @@ app.post('/profile/caretaker/dependent/:id/diagnosticReport', keycloak.protect('
 //
 // MANAGE organizations:
 // Routes for managing organizations of Boldo Multi Organization (BMO)
-// POST /profile/organization-manager/organization - create a BMO organization
-// GET /profile/organization-manager/organization - obtaint a list of BMO organizations
-// GET /organizations  - obtaint a list of BMO organizations
-// GET /organization/patient/subscriptionRequests  - obtaint a list of patients subscription requests 
+// POST /profile/organization-manager/organization - creates a BMO organization
+// GET /profile/organization-manager/organization - obtains a list of BMO organizations
+// GET /organizations  - obtains a list of BMO organizations
+// PUT /organization-manager/organization/:idOrganization - updates organization dto
+// PUT /organization-manager/organization/:idOrganization/settings - updates organization settings
+// GET /organization/patient/subscriptionRequests  - obtains a list of patients subscription requests
 // PUT /organization/patient/subscriptionRequests  - accept/reject patients subscription requests 
 
 
@@ -2239,6 +2241,30 @@ app.put('/profile/organization-manager/organization/patient/subscriptionRequests
   }
 })
 
+app.put('/profile/organization-manager/organization/:idOrganization', keycloak.protect('realm:organization_manager'), async (req, res) => {
+  const payload = req.body
+  try {
+    const resp =  await axios.put(`/profile/organization-manager/organization/${req.params.idOrganization}`, payload, {
+      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+    })
+    res.status(resp.status).send(resp.data)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
+
+app.put('/profile/organization-manager/organization/:idOrganization/settings', keycloak.protect('realm:organization_manager'), async (req, res) => {
+  const payload = req.body
+  try {
+    const resp =  await axios.put(`/profile/organization-manager/organization/${req.params.idOrganization}/settings`, payload, {
+      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+    })
+    res.status(resp.status).send(resp.data)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
+
 app.get('/organizations', async (req, res) => {
   const {  include } = req.query
   try {
@@ -2248,6 +2274,7 @@ app.get('/organizations', async (req, res) => {
     handleError(req, res, err)
   }
 })
+
 
 //
 // MANAGE PractitionerRole:
