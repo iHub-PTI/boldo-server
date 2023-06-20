@@ -324,7 +324,7 @@ export async function getDoctorsWithAvailability(req: express.Request, res: expr
           return doctor
         })
       )
-      res.send({ items: doctorsWithNextAvailability, total: doctorsIHub.length })
+      res.send({ items: doctorsWithNextAvailability, total: resp.data.total })
     }
   } catch (err) {
     handleError(req, res, err)
