@@ -618,10 +618,21 @@ app.get('/profile/doctor/serviceRequests', keycloak.protect('realm:doctor'), asy
   }
 })
 
-app.get('/profile/doctor/studies', keycloak.protect('realm:doctor'), async (req, res) => {
+app.get('/profile/doctor/studyOrders', keycloak.protect('realm:doctor'), async (req, res) => {
   if (!validate(req, res)) return
   try {
-    const resp = await axios.get(`/profile/doctor/studies?patient_id=${req.query.patient_id}${req.query.category ? `&category=${req.query.category}` : ''}${req.query.description ? `&description=${req.query.description}` : ''}${req.query.orderNumber ? `&orderNumber=${req.query.orderNumber}` : ''}${req.query.withOrder ? `&withOrder=${req.query.withOrder}` : ''}${req.query.newFirst ? `&newFirst=${req.query.newFirst}` : ''}${req.query.currentDoctorOnly ? `&currentDoctorOnly=${req.query.currentDoctorOnly}` : ''}`,
+    const resp = await axios.get(`/profile/doctor/studyOrders?patient_id=${req.query.patient_id}${req.query.category ? `&category=${req.query.category}` : ''}${req.query.description ? `&description=${req.query.description}` : ''}${req.query.orderNumber ? `&orderNumber=${req.query.orderNumber}` : ''}${req.query.withResult ? `&withResult=${req.query.withResult}` : ''}${req.query.newFirst ? `&newFirst=${req.query.newFirst}` : ''}${req.query.count ? `&count=${req.query.count}` : ''}${req.query.page ? `&page=${req.query.page}` : ''}${req.query.currentDoctorOnly ? `&currentDoctorOnly=${req.query.currentDoctorOnly}` : ''}`,
+      { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    res.status(resp.status).send(resp.data)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
+
+app.get('/profile/doctor/studyResults', keycloak.protect('realm:doctor'), async (req, res) => {
+  if (!validate(req, res)) return
+  try {
+    const resp = await axios.get(`/profile/doctor/studyResults?patient_id=${req.query.patient_id}${req.query.category ? `&category=${req.query.category}` : ''}${req.query.description ? `&description=${req.query.description}` : ''}${req.query.orderNumber ? `&orderNumber=${req.query.orderNumber}` : ''}${req.query.withOrder ? `&withOrder=${req.query.withOrder}` : ''}${req.query.newFirst ? `&newFirst=${req.query.newFirst}` : ''}${req.query.count ? `&count=${req.query.count}` : ''}${req.query.page ? `&page=${req.query.page}` : ''}${req.query.currentDoctorOnly ? `&currentDoctorOnly=${req.query.currentDoctorOnly}` : ''}`,
       { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
     res.status(resp.status).send(resp.data)
   } catch (err) {
