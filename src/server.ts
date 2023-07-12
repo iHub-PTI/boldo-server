@@ -2355,7 +2355,11 @@ app.get('/profile/organization-manager/doctorRole', keycloak.protect('realm:orga
 app.get('/presigned', keycloak.protect(), async (req, res) => {
   try {
     const resp = await axios.get('/s3/presigned', { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
-    res.send(resp.data)
+    const data = {
+      location: resp.data.location.string,
+      uploadUrl: resp.data.uploadUrl.string
+    }
+    res.send(data)
   } catch (err) {
     handleError(req, res, err)
   }
