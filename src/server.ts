@@ -277,6 +277,7 @@ app.get('/profile/doctor/organizations', keycloak.protect('realm:doctor'), async
 // GET /profile/doctor/relatedEncounters/Patient/:id - Get all related encounters from a single patient. List the groups.
 // GET /profile/doctor/relatedEncounters/${id} - Get a single group of related encounters. The ID may from anyone in the group 
 // GET /profile/doctor/patient/:patientId/encounters - Get all encounter by patientId
+// GET /profile/doctor/patient/:patientId/encounters-v2 - Get all encounter by patientId from ElasticSearch server
 // GET /profile/doctor/patient/:patientId/encounters/:encounterId - Get summary encounter by id
 
 //TODO: correct the path 
@@ -339,6 +340,36 @@ app.get('/profile/doctor/patient/:patientId/encounters', keycloak.protect('realm
     handleError(req, res, err)
   }
 });
+
+app.get('/profile/doctor/patient/:patientId/encounters-v2', keycloak.protect('realm:doctor'), async (req, res) => {
+  if (!validate(req, res)) return;
+  const { patientId } = req.params;
+  const { doctorId, content, count, offset, order } = req.query as any;
+  var query = [
+    { key: "doctorId", value: doctorId },
+    { key: "content", value: content },
+    { key: "count", value: count },
+    { key: "offset", value: offset },
+    { key: "order", value: order }
+  ]
+
+  var queryParams = "?";
+  query.forEach(element => {
+    if (element.value) {
+      queryParams = queryParams + `${element.key}=${element.value}&`
+    }
+  });
+  const path = `/profile/doctor/patient/${patientId}/encounters-v2${queryParams}`
+  try {
+    const response = await axios.get(path, {
+      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+    })
+    res.send(response.data)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+});
+
 
 app.get('/profile/doctor/patient/:patientId/encounters/:encounterId', keycloak.protect('realm:doctor'), async (req, res) => {
   if (!validate(req, res)) return
@@ -618,10 +649,21 @@ app.get('/profile/doctor/serviceRequests', keycloak.protect('realm:doctor'), asy
   }
 })
 
-app.get('/profile/doctor/studies', keycloak.protect('realm:doctor'), async (req, res) => {
+app.get('/profile/doctor/studyOrders', keycloak.protect('realm:doctor'), async (req, res) => {
   if (!validate(req, res)) return
   try {
-    const resp = await axios.get(`/profile/doctor/studies?patient_id=${req.query.patient_id}${req.query.category ? `&category=${req.query.category}` : ''}${req.query.description ? `&description=${req.query.description}` : ''}${req.query.orderNumber ? `&orderNumber=${req.query.orderNumber}` : ''}${req.query.withOrder ? `&withOrder=${req.query.withOrder}` : ''}${req.query.newFirst ? `&newFirst=${req.query.newFirst}` : ''}${req.query.currentDoctorOnly ? `&currentDoctorOnly=${req.query.currentDoctorOnly}` : ''}`,
+    const resp = await axios.get(`/profile/doctor/studyOrders?patient_id=${req.query.patient_id}${req.query.category ? `&category=${req.query.category}` : ''}${req.query.description ? `&description=${req.query.description}` : ''}${req.query.orderNumber ? `&orderNumber=${req.query.orderNumber}` : ''}${req.query.withResult ? `&withResult=${req.query.withResult}` : ''}${req.query.newFirst ? `&newFirst=${req.query.newFirst}` : ''}${req.query.count ? `&count=${req.query.count}` : ''}${req.query.page ? `&page=${req.query.page}` : ''}${req.query.currentDoctorOnly ? `&currentDoctorOnly=${req.query.currentDoctorOnly}` : ''}`,
+      { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    res.status(resp.status).send(resp.data)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
+
+app.get('/profile/doctor/studyResults', keycloak.protect('realm:doctor'), async (req, res) => {
+  if (!validate(req, res)) return
+  try {
+    const resp = await axios.get(`/profile/doctor/studyResults?patient_id=${req.query.patient_id}${req.query.category ? `&category=${req.query.category}` : ''}${req.query.description ? `&description=${req.query.description}` : ''}${req.query.orderNumber ? `&orderNumber=${req.query.orderNumber}` : ''}${req.query.withOrder ? `&withOrder=${req.query.withOrder}` : ''}${req.query.newFirst ? `&newFirst=${req.query.newFirst}` : ''}${req.query.count ? `&count=${req.query.count}` : ''}${req.query.page ? `&page=${req.query.page}` : ''}${req.query.currentDoctorOnly ? `&currentDoctorOnly=${req.query.currentDoctorOnly}` : ''}`,
       { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
     res.status(resp.status).send(resp.data)
   } catch (err) {
