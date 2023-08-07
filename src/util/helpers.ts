@@ -286,3 +286,47 @@ export async function doctorAvailability(req: express.Request, res: express.Resp
     handleError(req, res, err)
   }
 }
+
+export async function getDoctorsWithAvailability(req: express.Request, res: express.Response, endpoint: string, queryString: string, accessToken: string) {
+  try {
+    const resp = await axios.get<{ items: iHub.Doctor[]; total: number }>(
+      endpoint, 
+      {
+        headers: { Authorization: `Bearer ${accessToken}` }
+      }
+    )
+    if(resp.data.items==null) {
+      res.send({ items: [], total: 0 })
+    } else {
+      let doctorsIHub = resp.data.items;
+      let typeOfAvailabilityParam = "";
+      if (queryString) {
+        //creates a map from queryString
+        const qMap = queryString.split('&').reduce((mapAccumulator, obj) => {
+          let queryK = obj.split('=')[0]
+          let queryV = obj.split('=')[1]
+          mapAccumulator.set(queryK, queryV);
+          return mapAccumulator;
+        }, new Map());
+        if (qMap.has('appointmentType') && qMap.get('appointmentType')){
+          typeOfAvailabilityParam = qMap.get('appointmentType');
+          //filter doctors by checking if they dispose with a schedule with the type of Appointment specified 
+          doctorsIHub = await filterByAppointmentAvailability(resp.data.items, qMap.get('appointmentType'))
+        }
+      }
+    // FIXME: this currently creates one worker per doctor with huge overhead.
+    // Probably best to move this into a own worker.
+      const doctorsWithNextAvailability = await Promise.all(
+        doctorsIHub.map(async doctor => {
+          for (const o of doctor.organizations) {
+            o.nextAvailability = await calculateNextAvailability(doctor.id, o.id, accessToken, typeOfAvailabilityParam, 'main', null)
+          }
+          return doctor
+        })
+      )
+      res.send({ items: doctorsWithNextAvailability, total: resp.data.total })
+    }
+  } catch (err) {
+    handleError(req, res, err)
+  }
+}
