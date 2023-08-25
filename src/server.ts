@@ -201,7 +201,7 @@ app.put(
               )
               if (result) {
                 update = false;
-                handleError(req, res, { status: 400, message: "openHours settings overlay between organizations " + blocks[index].idOrganization + " and " + blocks[index+1].idOrganization });
+                handleError(req, res, { status: 400, message: "openHours settings overlay between organizations " + blocks[index].idOrganization + " and " + blocks[i].idOrganization });
                 return;
               }             
             }
