@@ -1,11 +1,13 @@
 import 'dotenv/config'
 
+/*
 require('elastic-apm-node').start({
   serviceName: 'boldo-server',
   secretToken: process.env.APM_SERVER_SECRET,
   serverUrl: process.env.APM_SERVER_URL,
   environment: process.env.APM_SERVER_ENVIRONMENT
 });
+*/
 
 import express from 'express'
 import cookieParser from 'cookie-parser'
@@ -53,8 +55,8 @@ export const app = express()
 // //////////////////////////////
 //
 //
-const AllowedOrigins = [process.env.CLIENT_ADDRESS!, 'http://localhost:3000']
-app.use(cors({ origin: AllowedOrigins, credentials: true }))
+//const AllowedOrigins = [process.env.CLIENT_ADDRESS!, 'http://localhost:3000']
+app.use(cors({ origin: "*", credentials: false }))
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 app.use(cookieParser())
@@ -106,12 +108,13 @@ export const keycloak = new Keycloak(
 // Never use redirects. Always send 401.
 keycloak.redirectToLogin = () => false
 keycloak.accessDenied = (req, res) => {
+  console.log("Access denied");
   res.status(401).send({ message: createLoginUrl(req, '/login') })
   // FIXME: Check if we should return something here
 }
 
 app.set('trust proxy', true)
-app.use(keycloak.middleware())
+//app.use(keycloak.middleware())
 
 app.use((req, res, next) => {
   req.userId = (req as any).kauth?.grant?.access_token?.content?.sub
@@ -119,7 +122,7 @@ app.use((req, res, next) => {
 })
 
 const getAccessToken = (req: any) => {
-  return req.kauth?.grant?.access_token?.token
+  return req.headers.authorization;
 }
 
 //
@@ -134,10 +137,6 @@ app.get('/', (req, res) => {
   res.send('<h1>Hello, nice to meet you 🤖</h1>')
 })
 
-app.get('/login', keycloak.protect(), (req, res) => {
-  res.redirect(process.env.CLIENT_ADDRESS!)
-})
-
 //
 // DOCTOR PROFILE:
 // Protected Routes for managing profile information
@@ -146,20 +145,19 @@ app.get('/login', keycloak.protect(), (req, res) => {
 // GET /profile/doctor/organizations - list the organizations the doctor is associated with
 //
 
-app.get('/profile/doctor', keycloak.protect('realm:doctor'), async (req, res) => {
+app.get('/profile/doctor', /*keycloak.protect('realm:doctor'),*/ async (req:any, res) => {
   try {
-    const doctor = await Doctor.findById(req.userId)
+    const doctor = await Doctor.findById(req.userId);
     const blocks = doctor?.blocks || [];
-    console.log(`Bearer ${getAccessToken(req)}`)
-    const resp = await axios.get('/profile/doctor', { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
-    const organization = await axios.get('/profile/doctor/organizations', { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
-
+    const resp = await axios.get('/profile/doctor', { headers: { Authorization: `${getAccessToken(req)}` } });
+    const organization = await axios.get('/profile/doctor/organizations', { headers: { Authorization: `${getAccessToken(req)}` } });
     res.send({ ...resp.data, workspace: organization.data, blocks, new: !doctor })
-  } catch (err) {
+  } 
+  catch (err) {
     console.log(err)
     handleError(req, res, err)
   }
-})
+});
 
 app.put(
   '/profile/doctor',
@@ -231,7 +229,7 @@ app.put(
     try {
       if (update) {
         //get all doctor workspaces
-        const organization = await axios.get('/profile/doctor/organizations', { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+        const organization = await axios.get('/profile/doctor/organizations', { headers: { Authorization: `${getAccessToken(req)}` } })
         // validations and controls
         if (organization.data) {
           let isSuscribed = false;
@@ -248,9 +246,9 @@ app.put(
         }
 
         if (update) {
-          const resp = await axios.get('/profile/doctor', { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+          const resp = await axios.get('/profile/doctor', { headers: { Authorization: `${getAccessToken(req)}` } })
           await Doctor.findOneAndUpdate({ _id: req.userId, id: resp.data.id }, { blocks } ,{ upsert: true, runValidators: true })
-          await axios.put('/profile/doctor', ihubPayload, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+          await axios.put('/profile/doctor', ihubPayload, { headers: { Authorization: `${getAccessToken(req)}` } })
           res.sendStatus(200)
         }
       }
@@ -260,11 +258,11 @@ app.put(
   }
 )
 
-app.get('/profile/doctor/organizations', keycloak.protect('realm:doctor'), async (req, res) => {
+app.get('/profile/doctor/organizations'/*, keycloak.protect('realm:doctor')*/, async (req, res) => {
   if (!validate(req, res)) return
   try {
     const resp = await axios.get(`/profile/doctor/organizations`,
-      { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+      { headers: { Authorization: `${getAccessToken(req)}` } })
     res.status(resp.status).send(resp.data)
   } catch (err) {
     handleError(req, res, err)
@@ -281,12 +279,12 @@ app.get('/profile/doctor/organizations', keycloak.protect('realm:doctor'), async
 // GET /profile/doctor/patient/:patientId/encounters/:encounterId - Get summary encounter by id
 
 //TODO: correct the path 
-app.get('/profile/doctor/relatedEncounters/Patient/:id/filterEncounterId/:encounterId', keycloak.protect('realm:doctor'), async (req, res) => {
+app.get('/profile/doctor/relatedEncounters/Patient/:id/filterEncounterId/:encounterId'/*, keycloak.protect('realm:doctor')*/, async (req, res) => {
   if (!validate(req, res)) return
   const { id, encounterId } = req.params
   try {
     const response = await axios.get(`/profile/doctor/relatedEncounters/Patient/${id}?lastOnly=true&filterEncounterId=${encounterId}`, {
-      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+      headers: { Authorization: `${getAccessToken(req)}` },
     })
     res.send({ encounter: response.data })
   } catch (err) {
@@ -294,12 +292,12 @@ app.get('/profile/doctor/relatedEncounters/Patient/:id/filterEncounterId/:encoun
   }
 })
 
-app.get('/profile/doctor/relatedEncounters/:id', keycloak.protect('realm:doctor'), async (req, res) => {
+app.get('/profile/doctor/relatedEncounters/:id'/*, keycloak.protect('realm:doctor')*/, async (req, res) => {
   if (!validate(req, res)) return
   const { id, encounterId } = req.params
   try {
     const response = await axios.get(`/profile/doctor/relatedEncounters/${id}?includePrescriptions=false&includeSoep=true`, {
-      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+      headers: { Authorization: `${getAccessToken(req)}` },
     })
     res.send({ encounter: response.data })
   } catch (err) {
@@ -307,7 +305,7 @@ app.get('/profile/doctor/relatedEncounters/:id', keycloak.protect('realm:doctor'
   }
 })
 
-app.get('/profile/doctor/patient/:patientId/encounters', keycloak.protect('realm:doctor'), async (req, res) => {
+app.get('/profile/doctor/patient/:patientId/encounters'/*, keycloak.protect('realm:doctor')*/, async (req, res) => {
   if (!validate(req, res)) return;
   const { patientId } = req.params;
   const { doctorId, content, privateComments, count, offset, order } = req.query as any;
@@ -333,7 +331,7 @@ app.get('/profile/doctor/patient/:patientId/encounters', keycloak.protect('realm
   console.log(path)
   try {
     const response = await axios.get(path, {
-      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+      headers: { Authorization: `${getAccessToken(req)}` },
     })
     res.send(response.data)
   } catch (err) {
@@ -341,7 +339,7 @@ app.get('/profile/doctor/patient/:patientId/encounters', keycloak.protect('realm
   }
 });
 
-app.get('/profile/doctor/patient/:patientId/encounters-v2', keycloak.protect('realm:doctor'), async (req, res) => {
+app.get('/profile/doctor/patient/:patientId/encounters-v2'/*, keycloak.protect('realm:doctor')*/, async (req, res) => {
   if (!validate(req, res)) return;
   const { patientId } = req.params;
   const { doctorId, content, count, offset, order } = req.query as any;
@@ -362,7 +360,7 @@ app.get('/profile/doctor/patient/:patientId/encounters-v2', keycloak.protect('re
   const path = `/profile/doctor/patient/${patientId}/encounters-v2${queryParams}`
   try {
     const response = await axios.get(path, {
-      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+      headers: { Authorization: `${getAccessToken(req)}` },
     })
     res.send(response.data)
   } catch (err) {
@@ -371,12 +369,12 @@ app.get('/profile/doctor/patient/:patientId/encounters-v2', keycloak.protect('re
 });
 
 
-app.get('/profile/doctor/patient/:patientId/encounters/:encounterId', keycloak.protect('realm:doctor'), async (req, res) => {
+app.get('/profile/doctor/patient/:patientId/encounters/:encounterId'/*, keycloak.protect('realm:doctor')*/, async (req, res) => {
   if (!validate(req, res)) return
   const { patientId, encounterId } = req.params
   try {
     const response = await axios.get(`/profile/doctor/patient/${patientId}/encounters/${encounterId}`, {
-      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+      headers: { Authorization: `${getAccessToken(req)}` },
     })
     res.send(response.data)
   } catch (err) {
@@ -392,11 +390,11 @@ app.get('/profile/doctor/patient/:patientId/encounters/:encounterId', keycloak.p
 //
 
 //TODO: delete DEPRECATED ENDPOINT
-app.post('/user/validate', keycloak.protect('realm:doctor'), async (req, res) => {
+app.post('/user/validate'/*, keycloak.protect('realm:doctor')*/, async (req, res) => {
   const payload = req.body
   try {
     const resp =  await axios.put(`profile/doctor/validatePatient?username=${payload.username}`, payload, {
-      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+      headers: { Authorization: `${getAccessToken(req)}` },
     })
     res.send(resp.data)
   } catch (err) {
@@ -405,11 +403,11 @@ app.post('/user/validate', keycloak.protect('realm:doctor'), async (req, res) =>
 })
 
 //TODO: delete comment. This endpoint is the same as the one above but with corrected path and operation
-app.put('/profile/doctor/validatePatient', query('username').notEmpty(), keycloak.protect('realm:doctor'), async (req, res) => {
+app.put('/profile/doctor/validatePatient', query('username').notEmpty()/*, keycloak.protect('realm:doctor')*/, async (req, res) => {
   const payload = req.body
   try {
     const resp =  await axios.put(`profile/doctor/validatePatient?username=${req.query.username}`, payload,{
-      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+      headers: { Authorization: `${getAccessToken(req)}` },
     })
     res.send(resp.data)
   } catch (err) {
@@ -418,10 +416,10 @@ app.put('/profile/doctor/validatePatient', query('username').notEmpty(), keycloa
 })
 
 //TODO: delete DEPRECATED endpoint.
-app.get('/inactive', keycloak.protect('realm:doctor'), async (req, res) => {
+app.get('/inactive'/*, keycloak.protect('realm:doctor')*/, async (req, res) => {
   try {
     const resp = await axios.get('/profile/doctor/inactivePatients', {
-      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+      headers: { Authorization: `${getAccessToken(req)}` },
     })
     res.send({ ...resp.data })
   } catch (err) {
@@ -431,10 +429,10 @@ app.get('/inactive', keycloak.protect('realm:doctor'), async (req, res) => {
 })
 
 //TODO: This endpoint is the same as the one above but with fixed path
-app.get('/profile/doctor/inactivePatients', keycloak.protect('realm:doctor'), async (req, res) => {
+app.get('/profile/doctor/inactivePatients'/*, keycloak.protect('realm:doctor')*/, async (req, res) => {
   try {
     const resp = await axios.get('/profile/doctor/inactivePatients', {
-      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+      headers: { Authorization: `${getAccessToken(req)}` },
     })
     res.send({ ...resp.data })
   } catch (err) {
@@ -453,12 +451,12 @@ app.get('/profile/doctor/inactivePatients', keycloak.protect('realm:doctor'), as
 // 
 
 
-app.get('/profile/doctor/relatedEncounters/:id/privateComments', keycloak.protect('realm:doctor'), async (req, res) => {
+app.get('/profile/doctor/relatedEncounters/:id/privateComments'/*, keycloak.protect('realm:doctor')*/, async (req, res) => {
   if (!validate(req, res)) return
   const { id} = req.params
   try {
     const response = await axios.get(`/profile/doctor/relatedEncounters/${id}/privateComments`, {
-      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+      headers: { Authorization: `${getAccessToken(req)}` },
     })
     res.send({ encounter: response.data })
   } catch (err) {
@@ -466,12 +464,12 @@ app.get('/profile/doctor/relatedEncounters/:id/privateComments', keycloak.protec
   }
 })
 
-app.post('/profile/doctor/encounters/:id/privateComments', keycloak.protect('realm:doctor'), async (req, res) => {
+app.post('/profile/doctor/encounters/:id/privateComments'/*, keycloak.protect('realm:doctor')*/, async (req, res) => {
   const payload = req.body
   const { id } = req.params
   try {
     const resp =  await axios.post(`/profile/doctor/encounters/${id}/privateComments`, payload, {
-      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+      headers: { Authorization: `${getAccessToken(req)}` },
     })
     res.send(resp.data)
   } catch (err) {
@@ -480,13 +478,13 @@ app.post('/profile/doctor/encounters/:id/privateComments', keycloak.protect('rea
   }
 })
 
-app.put('/profile/doctor/encounters/:encounterId/privateComments/:privateCommentId', keycloak.protect('realm:doctor'), async (req, res) => {
+app.put('/profile/doctor/encounters/:encounterId/privateComments/:privateCommentId'/*, keycloak.protect('realm:doctor')*/, async (req, res) => {
   if (!validate(req, res)) return
   const { encounterId,privateCommentId } = req.params
   const payload = req.body
   try {
     const response = await axios.put(`/profile/doctor/encounters/${encounterId}/privateComments/${privateCommentId}`, payload, {
-      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+      headers: { Authorization: `${getAccessToken(req)}` },
     })
     res.send({ encounter: response.data })
   } catch (err) {
@@ -502,7 +500,7 @@ app.delete(
       const { encounterId, privateCommentId } = req.params
 
       const headers = {
-        Authorization: `Bearer ${getAccessToken(req)}`,
+        Authorization: `${getAccessToken(req)}`,
       }
 
       const response = await axios.delete(
@@ -523,35 +521,35 @@ app.delete(
 // GET /profile/doctor/diagnosticReports - List Patient's diagnostic reports 
 // GET /profile/doctor/diagnosticReport/:id - get a diagnostic report
 // POST /profile/doctor/diagnosticReport - create a patient diagnostic report
-app.get('/profile/doctor/diagnosticReports', keycloak.protect('realm:doctor'), async (req, res) => {
+app.get('/profile/doctor/diagnosticReports'/*, keycloak.protect('realm:doctor')*/, async (req, res) => {
   if (!validate(req, res)) return
   try {
     console.log(`/profile/doctor/diagnosticReports?patient_id=${req.query.patient_id}${req.query.page ? `&page=${req.query.page}` : ''}${req.query.count ? `&count=${req.query.count}` : ''}${req.query.category ? `&category=${req.query.category}` : ''}${req.query.dateOrder ? `&dateOrder=${req.query.dateOrder}` : ''}`)
     const resp = await axios.get(`/profile/doctor/diagnosticReports?patient_id=${req.query.patient_id}${req.query.page ? `&page=${req.query.page}` : ''}${req.query.count ? `&count=${req.query.count}` : ''}${req.query.category ? `&category=${req.query.category}` : ''}${req.query.dateOrder ? `&dateOrder=${req.query.dateOrder}` : ''}`,
-      { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+      { headers: { Authorization: `${getAccessToken(req)}` } })
     res.status(resp.status).send(resp.data)
   } catch (err) {
     handleError(req, res, err)
   }
 })
 
-app.get('/profile/doctor/diagnosticReport/:id', keycloak.protect('realm:doctor'), async (req, res) => {
+app.get('/profile/doctor/diagnosticReport/:id'/*, keycloak.protect('realm:doctor')*/, async (req, res) => {
   const { id } = req.params
   try {
     const resp = await axios.get(`/profile/doctor/diagnosticReport/${id}`,
-      { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+      { headers: { Authorization: `${getAccessToken(req)}` } })
     res.status(resp.status).send(resp.data)
   } catch (err) {
     handleError(req, res, err)
   }
 })
 
-app.post('/profile/doctor/diagnosticReport', keycloak.protect('realm:doctor'), async (req, res) => {
+app.post('/profile/doctor/diagnosticReport'/*, keycloak.protect('realm:doctor')*/, async (req, res) => {
   const payload = req.body
   const startDate = new Date(payload.effectiveDate)
   if (startDate > new Date()) return res.status(400).send({ message: "invalid effectiveDate" })
   try {
-    const resp = await axios.post('/profile/doctor/diagnosticReport', payload, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    const resp = await axios.post('/profile/doctor/diagnosticReport', payload, { headers: { Authorization: `${getAccessToken(req)}` } })
     res.status(resp.status).send(resp.data)
   } catch (err) {
     handleError(req, res, err)
@@ -567,11 +565,11 @@ app.post('/profile/doctor/diagnosticReport', keycloak.protect('realm:doctor'), a
 // PUT /profile/doctor/studyOrderTemplate/:id - update a a study order template
 // PUT /profile/doctor/studyOrderTemplate/inactivate/:id - inactivate a study order template
 
-app.post('/profile/doctor/serviceRequest', keycloak.protect('realm:doctor'), async (req, res) => {
+app.post('/profile/doctor/serviceRequest'/*, keycloak.protect('realm:doctor')*/, async (req, res) => {
   const payload = req.body
   try {
     const resp =  await axios.post('/profile/doctor/serviceRequest', payload, {
-      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+      headers: { Authorization: `${getAccessToken(req)}` },
     })
     res.status(resp.status).send(resp.data)
   } catch (err) {
@@ -579,11 +577,11 @@ app.post('/profile/doctor/serviceRequest', keycloak.protect('realm:doctor'), asy
   }
 })
 
-app.post('/profile/doctor/studyOrderTemplate', keycloak.protect('realm:doctor'), async (req, res) => {
+app.post('/profile/doctor/studyOrderTemplate'/*, keycloak.protect('realm:doctor')*/, async (req, res) => {
   const payload = req.body
   try {
     const resp =  await axios.post('/profile/doctor/studyOrderTemplate', payload, {
-      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+      headers: { Authorization: `${getAccessToken(req)}` },
     })
     res.status(resp.status).send(resp.data)
   } catch (err) {
@@ -591,22 +589,22 @@ app.post('/profile/doctor/studyOrderTemplate', keycloak.protect('realm:doctor'),
   }
 })
 
-app.get('/profile/doctor/studyOrderTemplate', keycloak.protect('realm:doctor'), async (req, res) => {
+app.get('/profile/doctor/studyOrderTemplate'/*, keycloak.protect('realm:doctor')*/, async (req, res) => {
   try {
     const resp = await axios.get(`/profile/doctor/studyOrderTemplate`,
-      { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+      { headers: { Authorization: `${getAccessToken(req)}` } })
     res.status(resp.status).send(resp.data)
   } catch (err) {
     handleError(req, res, err)
   }
 })
 
-app.put('/profile/doctor/studyOrderTemplate/:id', keycloak.protect('realm:doctor'), async (req, res) => {
+app.put('/profile/doctor/studyOrderTemplate/:id'/*, keycloak.protect('realm:doctor')*/, async (req, res) => {
   const { id } = req.params
   const payload = req.body
   try {
     const resp = await axios.put(`/profile/doctor/studyOrderTemplate/${id}`, payload, {
-      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+      headers: { Authorization: `${getAccessToken(req)}` },
     })
     res.status(resp.status).send(resp.data)
   } catch (err) {
@@ -614,12 +612,12 @@ app.put('/profile/doctor/studyOrderTemplate/:id', keycloak.protect('realm:doctor
   }
 })
 
-app.put('/profile/doctor/studyOrderTemplate/inactivate/:id', keycloak.protect('realm:doctor'), async (req, res) => {
+app.put('/profile/doctor/studyOrderTemplate/inactivate/:id'/*, keycloak.protect('realm:doctor')*/, async (req, res) => {
   const { id } = req.params
   const payload = req.body
   try {
     const resp = await axios.put(`/profile/doctor/studyOrderTemplate/inactivate/${id}`, payload, {
-      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+      headers: { Authorization: `${getAccessToken(req)}` },
     })
     res.status(resp.status).send(resp.data)
   } catch (err) {
@@ -627,44 +625,44 @@ app.put('/profile/doctor/studyOrderTemplate/inactivate/:id', keycloak.protect('r
   }
 })
 
-app.get('/profile/doctor/serviceRequest/:id', keycloak.protect('realm:doctor'), async (req, res) => {
+app.get('/profile/doctor/serviceRequest/:id'/*, keycloak.protect('realm:doctor')*/, async (req, res) => {
   const { id } = req.params
   try {
-    const resp = await axios.get(`/profile/doctor/serviceRequest/${id}`, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    const resp = await axios.get(`/profile/doctor/serviceRequest/${id}`, { headers: { Authorization: `${getAccessToken(req)}` } })
     res.status(resp.status).send(resp.data)
   } catch (err) {
     handleError(req, res, err)
   }
 })
 
-app.get('/profile/doctor/serviceRequests', keycloak.protect('realm:doctor'), async (req, res) => {
+app.get('/profile/doctor/serviceRequests'/*, keycloak.protect('realm:doctor')*/, async (req, res) => {
   if (!validate(req, res)) return
   try {
     console.log(`/profile/doctor/serviceRequests?patient_id=${req.query.patient_id}${req.query.page ? `&page=${req.query.page}` : ''}${req.query.count ? `&count=${req.query.count}` : ''}${req.query.category ? `&category=${req.query.category}` : ''}${req.query.dateOrder ? `&dateOrder=${req.query.dateOrder}` : ''}`)
     const resp = await axios.get(`/profile/doctor/serviceRequests?patient_id=${req.query.patient_id}${req.query.page ? `&page=${req.query.page}` : ''}${req.query.count ? `&count=${req.query.count}` : ''}${req.query.category ? `&category=${req.query.category}` : ''}${req.query.dateOrder ? `&dateOrder=${req.query.dateOrder}` : ''}${req.query.orderNumber ? `&orderNumber=${req.query.orderNumber}` : ''}`,
-      { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+      { headers: { Authorization: `${getAccessToken(req)}` } })
     res.status(resp.status).send(resp.data)
   } catch (err) {
     handleError(req, res, err)
   }
 })
 
-app.get('/profile/doctor/studyOrders', keycloak.protect('realm:doctor'), async (req, res) => {
+app.get('/profile/doctor/studyOrders'/*, keycloak.protect('realm:doctor')*/, async (req, res) => {
   if (!validate(req, res)) return
   try {
     const resp = await axios.get(`/profile/doctor/studyOrders?patient_id=${req.query.patient_id}${req.query.category ? `&category=${req.query.category}` : ''}${req.query.description ? `&description=${req.query.description}` : ''}${req.query.orderNumber ? `&orderNumber=${req.query.orderNumber}` : ''}${req.query.withResult ? `&withResult=${req.query.withResult}` : ''}${req.query.newFirst ? `&newFirst=${req.query.newFirst}` : ''}${req.query.count ? `&count=${req.query.count}` : ''}${req.query.page ? `&page=${req.query.page}` : ''}${req.query.currentDoctorOnly ? `&currentDoctorOnly=${req.query.currentDoctorOnly}` : ''}`,
-      { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+      { headers: { Authorization: `${getAccessToken(req)}` } })
     res.status(resp.status).send(resp.data)
   } catch (err) {
     handleError(req, res, err)
   }
 })
 
-app.get('/profile/doctor/studyResults', keycloak.protect('realm:doctor'), async (req, res) => {
+app.get('/profile/doctor/studyResults'/*, keycloak.protect('realm:doctor')*/, async (req, res) => {
   if (!validate(req, res)) return
   try {
     const resp = await axios.get(`/profile/doctor/studyResults?patient_id=${req.query.patient_id}${req.query.category ? `&category=${req.query.category}` : ''}${req.query.description ? `&description=${req.query.description}` : ''}${req.query.orderNumber ? `&orderNumber=${req.query.orderNumber}` : ''}${req.query.withOrder ? `&withOrder=${req.query.withOrder}` : ''}${req.query.newFirst ? `&newFirst=${req.query.newFirst}` : ''}${req.query.count ? `&count=${req.query.count}` : ''}${req.query.page ? `&page=${req.query.page}` : ''}${req.query.currentDoctorOnly ? `&currentDoctorOnly=${req.query.currentDoctorOnly}` : ''}`,
-      { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+      { headers: { Authorization: `${getAccessToken(req)}` } })
     res.status(resp.status).send(resp.data)
   } catch (err) {
     handleError(req, res, err)
@@ -677,29 +675,29 @@ app.get('/profile/doctor/studyResults', keycloak.protect('realm:doctor'), async 
 // GET /profile/patient/encounter/:id/serviceRequests - obtaint a list of study order for an encounter
 // GET /profile/patient/serviceRequest/:id - obtaint a study order by id
 
-app.get('/profile/patient/serviceRequests', keycloak.protect('realm:patient'), async (req, res) => {
+app.get('/profile/patient/serviceRequests'/*, keycloak.protect('realm:patient')*/, async (req, res) => {
   try {
-    const resp = await axios.get('/profile/patient/serviceRequests', { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    const resp = await axios.get('/profile/patient/serviceRequests', { headers: { Authorization: `${getAccessToken(req)}` } })
     res.status(resp.status).send(resp.data)
   } catch (err) {
     handleError(req, res, err)
   }
 })
 
-app.get('/profile/patient/encounter/:id/serviceRequests', keycloak.protect('realm:patient'), async (req, res) => {
+app.get('/profile/patient/encounter/:id/serviceRequests'/*, keycloak.protect('realm:patient')*/, async (req, res) => {
   const { id } = req.params
   try {
-    const resp = await axios.get(`/profile/patient/encounter/${id}/serviceRequests`, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    const resp = await axios.get(`/profile/patient/encounter/${id}/serviceRequests`, { headers: { Authorization: `${getAccessToken(req)}` } })
     res.status(resp.status).send(resp.data)
   } catch (err) {
     handleError(req, res, err)
   }
 })
 
-app.get('/profile/patient/serviceRequest/:id', keycloak.protect('realm:patient'), async (req, res) => {
+app.get('/profile/patient/serviceRequest/:id'/*, keycloak.protect('realm:patient')*/, async (req, res) => {
   const { id } = req.params
   try {
-    const resp = await axios.get(`/profile/patient/serviceRequest/${id}`, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    const resp = await axios.get(`/profile/patient/serviceRequest/${id}`, { headers: { Authorization: `${getAccessToken(req)}` } })
     res.status(resp.status).send(resp.data)
   } catch (err) {
     handleError(req, res, err)
@@ -712,30 +710,30 @@ app.get('/profile/patient/serviceRequest/:id', keycloak.protect('realm:patient')
 // GET /profile/caretaker/dependent/:idDependent/encounter/:id/serviceRequests - obtaint a list of study order for an encounter
 // GET /profile/caretaker/dependent/:idDependent/serviceRequest/:id - obtaint a study order by id
 
-app.get('/profile/caretaker/dependent/:idDependent/serviceRequests', keycloak.protect('realm:patient'), async (req, res) => {
+app.get('/profile/caretaker/dependent/:idDependent/serviceRequests'/*, keycloak.protect('realm:patient')*/, async (req, res) => {
   const { idDependent } = req.params
   try {
-    const resp = await axios.get(`/profile/caretaker/dependent/${idDependent}/serviceRequests`, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    const resp = await axios.get(`/profile/caretaker/dependent/${idDependent}/serviceRequests`, { headers: { Authorization: `${getAccessToken(req)}` } })
     res.status(resp.status).send(resp.data)
   } catch (err) {
     handleError(req, res, err)
   }
 })
 
-app.get('/profile/caretaker/dependent/:idDependent/encounter/:id/serviceRequests', keycloak.protect('realm:patient'), async (req, res) => {
+app.get('/profile/caretaker/dependent/:idDependent/encounter/:id/serviceRequests'/*, keycloak.protect('realm:patient')*/, async (req, res) => {
   const { idDependent, id } = req.params
   try {
-    const resp = await axios.get(`/profile/caretaker/dependent/${idDependent}/encounter/${id}/serviceRequests`, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    const resp = await axios.get(`/profile/caretaker/dependent/${idDependent}/encounter/${id}/serviceRequests`, { headers: { Authorization: `${getAccessToken(req)}` } })
     res.status(resp.status).send(resp.data)
   } catch (err) {
     handleError(req, res, err)
   }
 })
 
-app.get('/profile/caretaker/dependent/:idDependent/serviceRequest/:id', keycloak.protect('realm:patient'), async (req, res) => {
+app.get('/profile/caretaker/dependent/:idDependent/serviceRequest/:id'/*, keycloak.protect('realm:patient')*/, async (req, res) => {
   const { idDependent, id } = req.params
   try {
-    const resp = await axios.get(`/profile/caretaker/dependent/${idDependent}/serviceRequest/${id}`, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    const resp = await axios.get(`/profile/caretaker/dependent/${idDependent}/serviceRequest/${id}`, { headers: { Authorization: `${getAccessToken(req)}` } })
     res.status(resp.status).send(resp.data)
   } catch (err) {
     handleError(req, res, err)
@@ -754,61 +752,61 @@ app.get('/profile/caretaker/dependent/:idDependent/serviceRequest/:id', keycloak
 // DELETE /profile/patient/subscriptionRequest/:id - delete a patient's subscription request in pending status
 // DELETE  /profile/patient/organization/:id - delete a patient's relationship with a BMO organization
 
-app.get('/profile/patient', keycloak.protect('realm:patient'), async (req, res) => {
+app.get('/profile/patient'/*, keycloak.protect('realm:patient')*/, async (req, res) => {
   try {
-    const resp = await axios.get('/profile/patient', { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    const resp = await axios.get('/profile/patient', { headers: { Authorization: `${getAccessToken(req)}` } })
     res.send(resp.data)
   } catch (err) {
     handleError(req, res, err)
   }
 })
 
-app.post('/profile/patient', keycloak.protect('realm:patient'), async (req, res) => {
+app.post('/profile/patient'/*, keycloak.protect('realm:patient')*/, async (req, res) => {
   const payload = req.body
   try {
-    await axios.put('/profile/patient', payload, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    await axios.put('/profile/patient', payload, { headers: { Authorization: `${getAccessToken(req)}` } })
     res.sendStatus(200)
   } catch (err) {
     handleError(req, res, err)
   }
 })
 
-app.get('/profile/patient/organizations', keycloak.protect('realm:patient'), async (req, res) => {
+app.get('/profile/patient/organizations'/*, keycloak.protect('realm:patient')*/, async (req, res) => {
   try {
-    const resp = await axios.get(`/profile/patient/organizations${req.query.subscribed ? `?subscribed=${req.query.subscribed}` : ''}`, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    const resp = await axios.get(`/profile/patient/organizations${req.query.subscribed ? `?subscribed=${req.query.subscribed}` : ''}`, { headers: { Authorization: `${getAccessToken(req)}` } })
     res.status(resp.status).send(resp.data)
   } catch (err) {
     handleError(req, res, err)
   }
 })
 
-app.post('/profile/patient/subscriptions', keycloak.protect('realm:patient'), async (req, res) => {
+app.post('/profile/patient/subscriptions'/*, keycloak.protect('realm:patient')*/, async (req, res) => {
   const payload = req.body
   const startDate = new Date(payload.effectiveDate)
   try {
-    const resp = await axios.post('/profile/patient/subscriptions', payload, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    const resp = await axios.post('/profile/patient/subscriptions', payload, { headers: { Authorization: `${getAccessToken(req)}` } })
     res.status(resp.status).send(resp.data)
   } catch (err) {
     handleError(req, res, err)
   }
 })
 
-app.put('/profile/patient/organizations/priorities', keycloak.protect('realm:patient'), async (req, res) => {
+app.put('/profile/patient/organizations/priorities'/*, keycloak.protect('realm:patient')*/, async (req, res) => {
   const payload = req.body
   try {
-    const resp = await axios.put(`/profile/patient/organizations/priorities`, payload, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    const resp = await axios.put(`/profile/patient/organizations/priorities`, payload, { headers: { Authorization: `${getAccessToken(req)}` } })
     res.status(resp.status).send(resp.data)
   } catch (err) {
     handleError(req, res, err)
   }
 })
-app.get('/profile/patient/lastEncounter/doctors/:idDoctor', keycloak.protect('realm:patient'), async (req, res) => {
+app.get('/profile/patient/lastEncounter/doctors/:idDoctor'/*, keycloak.protect('realm:patient')*/, async (req, res) => {
   const { idDoctor } = req.params
   try {
     const queryString = req.query.includeDependents!=undefined?req.query.includeDependents:true;
     const resp = await axios.get(`/profile/patient/lastEncounter/doctors/${idDoctor}?includeDependents=${queryString}`,
       {
-        headers: { Authorization: `Bearer ${getAccessToken(req)}` }
+        headers: { Authorization: `${getAccessToken(req)}` }
       }
     )
     res.status(resp.status).send(resp.data)
@@ -817,9 +815,9 @@ app.get('/profile/patient/lastEncounter/doctors/:idDoctor', keycloak.protect('re
   }
 })
 
-app.get('/profile/patient/subscriptionRequests', keycloak.protect('realm:patient'), async (req, res) => {
+app.get('/profile/patient/subscriptionRequests'/*, keycloak.protect('realm:patient')*/, async (req, res) => {
   try {
-    const resp = await axios.get(`/profile/patient/subscriptionRequests${req.query.status ? `?status=${req.query.status}` : ''}`, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    const resp = await axios.get(`/profile/patient/subscriptionRequests${req.query.status ? `?status=${req.query.status}` : ''}`, { headers: { Authorization: `${getAccessToken(req)}` } })
     res.status(resp.status).send(resp.data)
   } catch (err) {
     handleError(req, res, err)
@@ -828,13 +826,13 @@ app.get('/profile/patient/subscriptionRequests', keycloak.protect('realm:patient
 
 app.delete(
   '/profile/patient/subscriptionRequest/:id',
-  keycloak.protect('realm:patient'),
+  /*keycloak.protect('realm:patient')*/
   async (req, res) => {
     try {
       const { id} = req.params
       const resp = await axios.delete(
         `/profile/patient/subscriptionRequest/${id}`,
-        { headers: { Authorization: `Bearer ${getAccessToken(req)}` } }
+        { headers: { Authorization: `${getAccessToken(req)}` } }
       )
 
       res.status(resp.status).send(resp.data)
@@ -845,14 +843,14 @@ app.delete(
 )
 
 app.delete(
-  '/profile/patient/organization/:id',
-  keycloak.protect('realm:patient'),
+  '/profile/patient/organization/:id'/*,
+  keycloak.protect('realm:patient')*/,
   async (req, res) => {
     try {
       const { id} = req.params
       const resp = await axios.delete(
         `/profile/patient/organization/${id}`,
-        { headers: { Authorization: `Bearer ${getAccessToken(req)}` } }
+        { headers: { Authorization: `${getAccessToken(req)}` } }
       )
 
       res.status(resp.status).send(resp.data)
@@ -872,30 +870,30 @@ app.delete(
 // DELETE /profile/caretaker/dependent/:id/subscriptionRequest/:id - delete a dependent's subscription request in pending status
 // DELETE /profile/caretaker/dependent/:id/organization/:id - delete a dependent's relationship with a BMO organization
 
-app.get('/profile/patient/caretakers', keycloak.protect('realm:patient'), async (req, res) => {
+app.get('/profile/patient/caretakers'/*, keycloak.protect('realm:patient')*/, async (req, res) => {
   try {
-    const resp = await axios.get('/profile/patient/caretakers', { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    const resp = await axios.get('/profile/patient/caretakers', { headers: { Authorization: `${getAccessToken(req)}` } })
     res.status(resp.status).send(resp.data)
   } catch (err) {
     handleError(req, res, err)
   }
 })
 
-app.put('/profile/patient/inactivate/caretaker/:id', keycloak.protect('realm:patient'), async (req, res) => {
+app.put('/profile/patient/inactivate/caretaker/:id'/*, keycloak.protect('realm:patient')*/, async (req, res) => {
   const payload = req.body
   const { id } = req.params
   try {
-    const resp = await axios.put(`/profile/patient/inactivate/caretaker/${id}`, payload, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    const resp = await axios.put(`/profile/patient/inactivate/caretaker/${id}`, payload, { headers: { Authorization: `${getAccessToken(req)}` } })
     res.status(resp.status).send(resp.data)
   } catch (err) {
     handleError(req, res, err)
   }
 })
 
-app.get('/profile/caretaker/dependent/:idDependent/organizations', keycloak.protect('realm:patient'), async (req, res) => {
+app.get('/profile/caretaker/dependent/:idDependent/organizations'/*, keycloak.protect('realm:patient')*/, async (req, res) => {
   const { idDependent } = req.params
   try {
-    const resp = await axios.get(`/profile/caretaker/dependent/${idDependent}/organizations${req.query.subscribed ? `?subscribed=${req.query.subscribed}` : ''}`, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    const resp = await axios.get(`/profile/caretaker/dependent/${idDependent}/organizations${req.query.subscribed ? `?subscribed=${req.query.subscribed}` : ''}`, { headers: { Authorization: `${getAccessToken(req)}` } })
     res.status(resp.status).send(resp.data)
   } catch (err) {
     handleError(req, res, err)
@@ -903,7 +901,7 @@ app.get('/profile/caretaker/dependent/:idDependent/organizations', keycloak.prot
 })
 
 app.get('/profile/caretaker/dependent/:idDependent/doctors',
-  keycloak.protect('realm:patient'),
+  /*keycloak.protect('realm:patient'),*/
   async (req, res) => {
     const { idDependent } = req.params;
     const queryString = req.originalUrl.split('?')[1];
@@ -911,21 +909,21 @@ app.get('/profile/caretaker/dependent/:idDependent/doctors',
     await getDoctorsWithAvailability(req, res, endpoint, queryString, getAccessToken(req));
   })
 
-app.post('/profile/caretaker/dependent/:idDependent/subscriptions', keycloak.protect('realm:patient'), async (req, res) => {
+app.post('/profile/caretaker/dependent/:idDependent/subscriptions'/*, keycloak.protect('realm:patient')*/, async (req, res) => {
   const payload = req.body
   const { idDependent } = req.params
   try {
-    const resp = await axios.post(`/profile/caretaker/dependent/${idDependent}/subscriptions`, payload, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    const resp = await axios.post(`/profile/caretaker/dependent/${idDependent}/subscriptions`, payload, { headers: { Authorization: `${getAccessToken(req)}` } })
     res.status(resp.status).send(resp.data)
   } catch (err) {
     handleError(req, res, err)
   }
 })
 
-app.get('/profile/caretaker/dependent/:idDependent/subscriptionRequests', keycloak.protect('realm:patient'), async (req, res) => {
+app.get('/profile/caretaker/dependent/:idDependent/subscriptionRequests'/*, keycloak.protect('realm:patient')*/, async (req, res) => {
   try {
     const { idDependent } = req.params
-    const resp = await axios.get(`/profile/caretaker/dependent/${idDependent}/subscriptionRequests${req.query.status ? `?status=${req.query.status}` : ''}`, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    const resp = await axios.get(`/profile/caretaker/dependent/${idDependent}/subscriptionRequests${req.query.status ? `?status=${req.query.status}` : ''}`, { headers: { Authorization: `${getAccessToken(req)}` } })
     res.status(resp.status).send(resp.data)
   } catch (err) {
     handleError(req, res, err)
@@ -934,13 +932,13 @@ app.get('/profile/caretaker/dependent/:idDependent/subscriptionRequests', keyclo
 
 app.delete(
   '/profile/caretaker/dependent/:idDependent/subscriptionRequest/:id',
-  keycloak.protect('realm:patient'),
+  /*keycloak.protect('realm:patient'),*/
   async (req, res) => {
     try {
       const { idDependent, id} = req.params
       const resp = await axios.delete(
         `/profile/caretaker/dependent/${idDependent}/subscriptionRequest/${id}`,
-        { headers: { Authorization: `Bearer ${getAccessToken(req)}` } }
+        { headers: { Authorization: `${getAccessToken(req)}` } }
       )
 
       res.status(resp.status).send(resp.data)
@@ -952,13 +950,13 @@ app.delete(
 
 app.delete(
   '/profile/caretaker/dependent/:idDependent/organization/:id',
-  keycloak.protect('realm:patient'),
+  /*keycloak.protect('realm:patient'),*/
   async (req, res) => {
     try {
       const { idDependent, id} = req.params
       const resp = await axios.delete(
         `/profile/caretaker/dependent/${idDependent}/organization/${id}`,
-        { headers: { Authorization: `Bearer ${getAccessToken(req)}` } }
+        { headers: { Authorization: `${getAccessToken(req)}` } }
       )
 
       res.status(resp.status).send(resp.data)
@@ -985,54 +983,54 @@ app.delete(
 // GET /profile/caretaker/dependent/qrcode/decode?qr=${qrCode} - Decode QR code of dependent patient
 // POST /profile/caretaker/dependent/add/qrcode?qr=${qrCode} - Add dependent patient by QR code
 
-app.get('/profile/caretaker/dependents', keycloak.protect('realm:patient'), async (req, res) => {
+app.get('/profile/caretaker/dependents'/*, keycloak.protect('realm:patient')*/, async (req, res) => {
   try {
-    const resp = await axios.get('/profile/caretaker/dependents', { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    const resp = await axios.get('/profile/caretaker/dependents', { headers: { Authorization: `${getAccessToken(req)}` } })
     res.status(resp.status).send(resp.data)
   } catch (err) {
     handleError(req, res, err)
   }
 })
 
-app.post('/profile/caretaker/dependent', keycloak.protect('realm:patient'), async (req, res) => {
+app.post('/profile/caretaker/dependent'/*, keycloak.protect('realm:patient')*/, async (req, res) => {
   const payload = req.body
   try {
-    const resp = await axios.post('/profile/caretaker/dependent', payload, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    const resp = await axios.post('/profile/caretaker/dependent', payload, { headers: { Authorization: `${getAccessToken(req)}` } })
     res.status(resp.status).send(resp.data)
   } catch (err) {
     handleError(req, res, err)
   }
 })
 
-app.put('/profile/caretaker/dependent/:id', keycloak.protect('realm:patient'), async (req, res) => {
-  const payload = req.body
-  const { id } = req.params
-  try {
-    const resp = await axios.put(`/profile/caretaker/dependent/${id}`, payload, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
-    res.status(resp.status).send(resp.data)
-  } catch (err) {
-    handleError(req, res, err)
-  }
-})
-
-app.put('/profile/caretaker/inactivate/dependent/:id', keycloak.protect('realm:patient'), async (req, res) => {
+app.put('/profile/caretaker/dependent/:id'/*, keycloak.protect('realm:patient')*/, async (req, res) => {
   const payload = req.body
   const { id } = req.params
   try {
-    const resp = await axios.put(`/profile/caretaker/inactivate/dependent/${id}`, payload, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    const resp = await axios.put(`/profile/caretaker/dependent/${id}`, payload, { headers: { Authorization: `${getAccessToken(req)}` } })
     res.status(resp.status).send(resp.data)
   } catch (err) {
     handleError(req, res, err)
   }
 })
 
-app.get('/profile/caretaker/dependent/:id', keycloak.protect('realm:patient'), async (req, res) => {
+app.put('/profile/caretaker/inactivate/dependent/:id'/*, keycloak.protect('realm:patient')*/, async (req, res) => {
+  const payload = req.body
+  const { id } = req.params
+  try {
+    const resp = await axios.put(`/profile/caretaker/inactivate/dependent/${id}`, payload, { headers: { Authorization: `${getAccessToken(req)}` } })
+    res.status(resp.status).send(resp.data)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
+
+app.get('/profile/caretaker/dependent/:id'/*, keycloak.protect('realm:patient')*/, async (req, res) => {
   if (!validate(req, res)) return
   const { id } = req.params
 
   try {
     const response = await axios.get(`/profile/caretaker/dependent/${id}`, {
-      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+      headers: { Authorization: `${getAccessToken(req)}` },
     })
     res.status(response.status).send(response.data)
   } catch (err) {
@@ -1040,13 +1038,13 @@ app.get('/profile/caretaker/dependent/:id', keycloak.protect('realm:patient'), a
   }
 })
 
-app.get('/profile/caretaker/dependent/confirm/:id', keycloak.protect('realm:patient'), async (req, res) => {
+app.get('/profile/caretaker/dependent/confirm/:id'/*, keycloak.protect('realm:patient')*/, async (req, res) => {
   if (!validate(req, res)) return
   const { id } = req.params
 
   try {
     const response = await axios.get(`/profile/caretaker/dependent/confirm/${id}`, {
-      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+      headers: { Authorization: `${getAccessToken(req)}` },
     })
     res.status(response.status).send(response.data)
   } catch (err) {
@@ -1054,102 +1052,102 @@ app.get('/profile/caretaker/dependent/confirm/:id', keycloak.protect('realm:pati
   }
 })
 
-app.get('/profile/caretaker/relationships', keycloak.protect('realm:patient'), async (req, res) => {
+app.get('/profile/caretaker/relationships'/*, keycloak.protect('realm:patient')*/, async (req, res) => {
   try {
-    const resp = await axios.get('/profile/caretaker/relationships', { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    const resp = await axios.get('/profile/caretaker/relationships', { headers: { Authorization: `${getAccessToken(req)}` } })
     res.status(resp.status).send(resp.data)
   } catch (err) {
     handleError(req, res, err)
   }
 })
 
-app.get('/profile/caretaker/dependent/s3/validateDocument/idCardParaguay/side1/uploadPresigned', query('hash').isString().optional(), keycloak.protect('realm:patient'), async (req, res) => {
+app.get('/profile/caretaker/dependent/s3/validateDocument/idCardParaguay/side1/uploadPresigned', query('hash').isString().optional()/*, keycloak.protect('realm:patient')*/, async (req, res) => {
   const { hash } = req.query as any
   try {
-    const resp = await axios.get(`/profile/caretaker/dependent/s3/validateDocument/idCardParaguay/side1/uploadPresigned${hash ? `?hash=${hash}` : ''}`, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    const resp = await axios.get(`/profile/caretaker/dependent/s3/validateDocument/idCardParaguay/side1/uploadPresigned${hash ? `?hash=${hash}` : ''}`, { headers: { Authorization: `${getAccessToken(req)}` } })
     res.status(resp.status).send(resp.data)
   } catch (err) {
     handleError(req, res, err)
   }
 });
 
-app.post('/profile/caretaker/dependent/s3/validateDocument/idCardParaguay/side1/validate', query('hash').isString().notEmpty(), keycloak.protect('realm:patient'), async (req, res) => {
+app.post('/profile/caretaker/dependent/s3/validateDocument/idCardParaguay/side1/validate', query('hash').isString().notEmpty()/*, keycloak.protect('realm:patient')*/, async (req, res) => {
   const payload = req.body
   const { hash } = req.query as any
   try {
-    const resp = await axios.post(`/profile/caretaker/dependent/s3/validateDocument/idCardParaguay/side1/validate?hash=${hash}`, payload, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    const resp = await axios.post(`/profile/caretaker/dependent/s3/validateDocument/idCardParaguay/side1/validate?hash=${hash}`, payload, { headers: { Authorization: `${getAccessToken(req)}` } })
     res.status(resp.status).send(resp.data)
   } catch (err) {
     handleError(req, res, err)
   }
 });
 
-app.get('/profile/caretaker/dependent/s3/validateDocument/idCardParaguay/side2/uploadPresigned', query('hash').isString().notEmpty(), keycloak.protect('realm:patient'), async (req, res) => {
+app.get('/profile/caretaker/dependent/s3/validateDocument/idCardParaguay/side2/uploadPresigned', query('hash').isString().notEmpty()/*, keycloak.protect('realm:patient')*/, async (req, res) => {
   const { hash } = req.query as any
   try {
-    const resp = await axios.get(`/profile/caretaker/dependent/s3/validateDocument/idCardParaguay/side2/uploadPresigned?hash=${hash}`, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    const resp = await axios.get(`/profile/caretaker/dependent/s3/validateDocument/idCardParaguay/side2/uploadPresigned?hash=${hash}`, { headers: { Authorization: `${getAccessToken(req)}` } })
     res.status(resp.status).send(resp.data)
   } catch (err) {
     handleError(req, res, err)
   }
 });
 
-app.post('/profile/caretaker/dependent/s3/validateDocument/idCardParaguay/side2/validate', query('hash').isString().notEmpty(), keycloak.protect('realm:patient'), async (req, res) => {
+app.post('/profile/caretaker/dependent/s3/validateDocument/idCardParaguay/side2/validate', query('hash').isString().notEmpty()/*, keycloak.protect('realm:patient')*/, async (req, res) => {
   const payload = req.body
   const { hash } = req.query as any
   try {
-    const resp = await axios.post(`/profile/caretaker/dependent/s3/validateDocument/idCardParaguay/side2/validate?hash=${hash}`, payload, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    const resp = await axios.post(`/profile/caretaker/dependent/s3/validateDocument/idCardParaguay/side2/validate?hash=${hash}`, payload, { headers: { Authorization: `${getAccessToken(req)}` } })
     res.status(resp.status).send(resp.data)
   } catch (err) {
     handleError(req, res, err)
   }
 });
 
-app.get('/profile/caretaker/dependent/s4/validateSelfie/uploadPresigned', query('hash').isString().notEmpty(), keycloak.protect('realm:patient'), async (req, res) => {
+app.get('/profile/caretaker/dependent/s4/validateSelfie/uploadPresigned', query('hash').isString().notEmpty()/*, keycloak.protect('realm:patient')*/, async (req, res) => {
   const { hash } = req.query as any
   try {
-    const resp = await axios.get(`/profile/caretaker/dependent/s4/validateSelfie/uploadPresigned?hash=${hash}`, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    const resp = await axios.get(`/profile/caretaker/dependent/s4/validateSelfie/uploadPresigned?hash=${hash}`, { headers: { Authorization: `${getAccessToken(req)}` } })
     res.status(resp.status).send(resp.data)
   } catch (err) {
     handleError(req, res, err)
   }
 });
 
-app.post('/profile/caretaker/dependent/s4/validateSelfie/validate', query('hash').isString().notEmpty(), keycloak.protect('realm:patient'), async (req, res) => {
+app.post('/profile/caretaker/dependent/s4/validateSelfie/validate', query('hash').isString().notEmpty()/*, keycloak.protect('realm:patient')*/, async (req, res) => {
   const payload = req.body
   const { hash } = req.query as any
   try {
-    const resp = await axios.post(`/profile/caretaker/dependent/s4/validateSelfie/validate?hash=${hash}`, payload, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    const resp = await axios.post(`/profile/caretaker/dependent/s4/validateSelfie/validate?hash=${hash}`, payload, { headers: { Authorization: `${getAccessToken(req)}` } })
     res.status(resp.status).send(resp.data)
   } catch (err) {
     handleError(req, res, err)
   }
 });
 
-app.get('/profile/caretaker/dependent/qrcode/decode', query('qr').isString().notEmpty(), keycloak.protect('realm:patient'), async (req, res) => {
+app.get('/profile/caretaker/dependent/qrcode/decode', query('qr').isString().notEmpty()/*, keycloak.protect('realm:patient')*/, async (req, res) => {
   const { qr } = req.query as any
   try {
-    const resp = await axios.get(`/profile/caretaker/qrcode/decode?qr=${qr}`, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    const resp = await axios.get(`/profile/caretaker/qrcode/decode?qr=${qr}`, { headers: { Authorization: `${getAccessToken(req)}` } })
     res.status(resp.status).send(resp.data)
   } catch (err) {
     handleError(req, res, err)
   }
 });
 
-app.post('/profile/caretaker/dependent/add/qrcode', query('qr').isString().notEmpty(), keycloak.protect('realm:patient'), async (req, res) => {
+app.post('/profile/caretaker/dependent/add/qrcode', query('qr').isString().notEmpty()/*, keycloak.protect('realm:patient')*/, async (req, res) => {
   const payload = req.body
   const { qr } = req.query as any
   try {
-    const resp = await axios.post(`/profile/caretaker/dependent/add/qrcode?qr=${qr}`, payload, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    const resp = await axios.post(`/profile/caretaker/dependent/add/qrcode?qr=${qr}`, payload, { headers: { Authorization: `${getAccessToken(req)}` } })
     res.status(resp.status).send(resp.data)
   } catch (err) {
     handleError(req, res, err)
   }
 });
-app.get('/profile/caretaker/dependent/:idDependent/lastEncounter/doctor/:idDoctor', keycloak.protect('realm:patient'), async (req, res) => {
+app.get('/profile/caretaker/dependent/:idDependent/lastEncounter/doctor/:idDoctor'/*, keycloak.protect('realm:patient')*/, async (req, res) => {
   const { idDependent ,idDoctor} = req.params
   try {
-    const resp = await axios.get(`/profile/caretaker/dependent/${idDependent}/lastEncounter/doctor/${idDoctor}`, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    const resp = await axios.get(`/profile/caretaker/dependent/${idDependent}/lastEncounter/doctor/${idDoctor}`, { headers: { Authorization: `${getAccessToken(req)}` } })
     res.status(resp.status).send(resp.data)
   } catch (err) {
     handleError(req, res, err)
@@ -1164,14 +1162,14 @@ app.get('/profile/caretaker/dependent/:idDependent/lastEncounter/doctor/:idDocto
 // GET /profile/doctor//medications - Read medications
 //
 
-app.get('/profile/doctor/medications', query('content').isString().optional(), keycloak.protect('realm:doctor'), async (req: any, res) => {
+app.get('/profile/doctor/medications', query('content').isString().optional()/*, keycloak.protect('realm:doctor')*/, async (req: any, res) => {
   if (!validate(req, res)) return
 
   const { content } = req.query as any
 
   try {
     const resp = await axios.get(`/profile/doctor/medications${content ? `?content=${content}` : ''}`, {
-      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+      headers: { Authorization: `${getAccessToken(req)}` },
     })
     res.send({ items: resp.data.items })
   } catch (err) {
@@ -1195,12 +1193,12 @@ app.get('/profile/doctor/medications', query('content').isString().optional(), k
 // POST /profile/doctor/observation - create a new record of a gynecology information about patient
 //
 
-app.get('/profile/doctor/history', keycloak.protect('realm:doctor'), async (req: any, res) => {
+app.get('/profile/doctor/history'/*, keycloak.protect('realm:doctor')*/, async (req: any, res) => {
   if (!validate(req, res)) return
 
   try {
     const resp = await axios.get(`/profile/doctor/history${req.query.patient_id ? `?patient_id=${req.query.patient_id}` : ''}`, {
-      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+      headers: { Authorization: `${getAccessToken(req)}` },
     })
     res.status(resp.status).send(resp.data)
   } catch (err) {
@@ -1208,11 +1206,11 @@ app.get('/profile/doctor/history', keycloak.protect('realm:doctor'), async (req:
   }
 })
 
-app.post('/profile/doctor/allergyIntolerance', keycloak.protect('realm:doctor'), async (req, res) => {
+app.post('/profile/doctor/allergyIntolerance'/*, keycloak.protect('realm:doctor')*/, async (req, res) => {
   const payload = req.body
   
   try {
-    const resp = await axios.post('/profile/doctor/allergyIntolerance', payload, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    const resp = await axios.post('/profile/doctor/allergyIntolerance', payload, { headers: { Authorization: `${getAccessToken(req)}` } })
     res.status(resp.status).send(resp.data)
   } catch (err) {
     handleError(req, res, err)
@@ -1220,12 +1218,12 @@ app.post('/profile/doctor/allergyIntolerance', keycloak.protect('realm:doctor'),
 })
 
 
-app.put('/profile/doctor/allergyIntolerance/:id', keycloak.protect('realm:doctor'), async (req, res) => {
+app.put('/profile/doctor/allergyIntolerance/:id'/*, keycloak.protect('realm:doctor')*/, async (req, res) => {
   const { id } = req.params
   const payload = req.body
   try {
     const resp = await axios.put(`/profile/doctor/allergyIntolerance/${id}`, payload, {
-      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+      headers: { Authorization: `${getAccessToken(req)}` },
     })
     res.status(resp.status).send(resp.data)
   } catch (err) {
@@ -1233,11 +1231,11 @@ app.put('/profile/doctor/allergyIntolerance/:id', keycloak.protect('realm:doctor
   }
 })
 
-app.post('/profile/doctor/condition', keycloak.protect('realm:doctor'), async (req, res) => {
+app.post('/profile/doctor/condition'/*, keycloak.protect('realm:doctor')*/, async (req, res) => {
   const payload = req.body
   
   try {
-    const resp = await axios.post('/profile/doctor/condition', payload, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    const resp = await axios.post('/profile/doctor/condition', payload, { headers: { Authorization: `${getAccessToken(req)}` } })
     res.status(resp.status).send(resp.data)
   } catch (err) {
     handleError(req, res, err)
@@ -1245,12 +1243,12 @@ app.post('/profile/doctor/condition', keycloak.protect('realm:doctor'), async (r
 })
 
 
-app.put('/profile/doctor/condition/:id', keycloak.protect('realm:doctor'), async (req, res) => {
+app.put('/profile/doctor/condition/:id'/*, keycloak.protect('realm:doctor')*/, async (req, res) => {
   const { id } = req.params
   const payload = req.body
   try {
     const resp = await axios.put(`/profile/doctor/condition/${id}`, payload, {
-      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+      headers: { Authorization: `${getAccessToken(req)}` },
     })
     res.status(resp.status).send(resp.data)
   } catch (err) {
@@ -1258,23 +1256,23 @@ app.put('/profile/doctor/condition/:id', keycloak.protect('realm:doctor'), async
   }
 })
 
-app.post('/profile/doctor/procedure', keycloak.protect('realm:doctor'), async (req, res) => {
+app.post('/profile/doctor/procedure'/*, keycloak.protect('realm:doctor')*/, async (req, res) => {
   const payload = req.body
   
   try {
-    const resp = await axios.post('/profile/doctor/procedure', payload, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    const resp = await axios.post('/profile/doctor/procedure', payload, { headers: { Authorization: `${getAccessToken(req)}` } })
     res.status(resp.status).send(resp.data)
   } catch (err) {
     handleError(req, res, err)
   }
 })
 
-app.put('/profile/doctor/procedure/:id', keycloak.protect('realm:doctor'), async (req, res) => {
+app.put('/profile/doctor/procedure/:id'/*, keycloak.protect('realm:doctor')*/, async (req, res) => {
   const { id } = req.params
   const payload = req.body
   try {
     const resp = await axios.put(`/profile/doctor/procedure/${id}`, payload, {
-      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+      headers: { Authorization: `${getAccessToken(req)}` },
     })
     res.status(resp.status).send(resp.data)
   } catch (err) {
@@ -1282,23 +1280,23 @@ app.put('/profile/doctor/procedure/:id', keycloak.protect('realm:doctor'), async
   }
 })
 
-app.post('/profile/doctor/familyMemberHistory', keycloak.protect('realm:doctor'), async (req, res) => {
+app.post('/profile/doctor/familyMemberHistory'/*, keycloak.protect('realm:doctor')*/, async (req, res) => {
   const payload = req.body
   
   try {
-    const resp = await axios.post('/profile/doctor/familyMemberHistory', payload, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    const resp = await axios.post('/profile/doctor/familyMemberHistory', payload, { headers: { Authorization: `${getAccessToken(req)}` } })
     res.status(resp.status).send(resp.data)
   } catch (err) {
     handleError(req, res, err)
   }
 })
 
-app.put('/profile/doctor/familyMemberHistory/:id', keycloak.protect('realm:doctor'), async (req, res) => {
+app.put('/profile/doctor/familyMemberHistory/:id'/*, keycloak.protect('realm:doctor')*/, async (req, res) => {
   const { id } = req.params
   const payload = req.body
   try {
     const resp = await axios.put(`/profile/doctor/familyMemberHistory/${id}`, payload, {
-      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+      headers: { Authorization: `${getAccessToken(req)}` },
     })
     res.status(resp.status).send(resp.data)
   } catch (err) {
@@ -1306,11 +1304,11 @@ app.put('/profile/doctor/familyMemberHistory/:id', keycloak.protect('realm:docto
   }
 })
 
-app.post('/profile/doctor/observation', keycloak.protect('realm:doctor'), async (req, res) => {
+app.post('/profile/doctor/observation'/*, keycloak.protect('realm:doctor')*/, async (req, res) => {
   const payload = req.body
   
   try {
-    const resp = await axios.post('/profile/doctor/observation', payload, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    const resp = await axios.post('/profile/doctor/observation', payload, { headers: { Authorization: `${getAccessToken(req)}` } })
     res.status(resp.status).send(resp.data)
   } catch (err) {
     handleError(req, res, err)
@@ -1325,14 +1323,14 @@ app.post('/profile/doctor/observation', keycloak.protect('realm:doctor'), async 
 // GET /profile/doctor/appointments/:id/encounter/reports - Prints PDF reports generated in the Encounter by appointmentID
 //
 
-app.put('/profile/doctor/appointments/:id/encounter', keycloak.protect('realm:doctor'), async (req, res) => {
+app.put('/profile/doctor/appointments/:id/encounter'/*, keycloak.protect('realm:doctor')*/, async (req, res) => {
   if (!validate(req, res)) return
   const { id } = req.params
   const { encounterData } = req.body
 
   try {
     await axios.put(`/profile/doctor/appointments/${id}/encounter`, encounterData, {
-      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+      headers: { Authorization: `${getAccessToken(req)}` },
     })
     res.sendStatus(200)
   } catch (err) {
@@ -1340,13 +1338,13 @@ app.put('/profile/doctor/appointments/:id/encounter', keycloak.protect('realm:do
   }
 })
 
-app.get('/profile/doctor/appointments/:id/encounter', keycloak.protect('realm:doctor'), async (req, res) => {
+app.get('/profile/doctor/appointments/:id/encounter'/*, keycloak.protect('realm:doctor')*/, async (req, res) => {
   if (!validate(req, res)) return
   const { id } = req.params
 
   try {
     const response = await axios.get(`/profile/doctor/appointments/${id}/encounter`, {
-      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+      headers: { Authorization: `${getAccessToken(req)}` },
     })
     res.send({ encounter: response.data })
   } catch (err) {
@@ -1355,8 +1353,8 @@ app.get('/profile/doctor/appointments/:id/encounter', keycloak.protect('realm:do
 })
 
 app.get('/profile/doctor/appointments/:id/encounter/reports',
-    cors({ origin: AllowedOrigins, credentials: true, exposedHeaders:['Content-Disposition'] }),
-  keycloak.protect('realm:doctor'), async (req, res) => {
+    cors({ origin: "*", credentials: false, exposedHeaders:['Content-Disposition'] }),
+  /*keycloak.protect('realm:doctor'),*/ async (req, res) => {
     if (!validate(req, res)) return
     const { id } = req.params
 
@@ -1366,7 +1364,7 @@ app.get('/profile/doctor/appointments/:id/encounter/reports',
       const response = await axios.get(`/profile/doctor/appointments/${id}/encounter/reports?${reportsParam? `${reportsParam}`: ''}`, {
           responseType: 'arraybuffer',
           headers: {
-            Authorization: `Bearer ${getAccessToken(req)}`,
+            Authorization: `${getAccessToken(req)}`,
             'Content-Type': 'application/json',
             'Accept': 'application/pdf'
           },
@@ -1396,13 +1394,13 @@ app.get('/profile/doctor/appointments/:id/encounter/reports',
 // GET /profile/patient/relatedEncounters/{id_encounter}  
 // GET /profile/patient/relatedEncounters 
 
-app.get('/profile/patient/appointments/:id/encounter', keycloak.protect('realm:patient'), async (req, res) => {
+app.get('/profile/patient/appointments/:id/encounter'/*, keycloak.protect('realm:patient')*/, async (req, res) => {
   if (!validate(req, res)) return
   const { id } = req.params
 
   try {
     const response = await axios.get(`/profile/patient/appointments/${id}/encounter`, {
-      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+      headers: { Authorization: `${getAccessToken(req)}` },
     })
     res.send({ encounter: response.data })
   } catch (err) {
@@ -1410,11 +1408,11 @@ app.get('/profile/patient/appointments/:id/encounter', keycloak.protect('realm:p
   }
 })
 
-app.get('/profile/patient/encounters', keycloak.protect('realm:patient'), async (req, res) => {
+app.get('/profile/patient/encounters'/*, keycloak.protect('realm:patient')*/, async (req, res) => {
   if (!validate(req, res)) return
   try {
     const response = await axios.get(`/profile/patient/encounters?${req.query.status ? `status=${req.query.status}&` : ''}includePrescriptions=${req.query.includePrescriptions}&includeSoep=${req.query.includeSoep}`, {
-      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+      headers: { Authorization: `${getAccessToken(req)}` },
     })
     res.send({ encounter: response.data })
   } catch (err) {
@@ -1422,13 +1420,13 @@ app.get('/profile/patient/encounters', keycloak.protect('realm:patient'), async 
   }
 })
 
-app.get('/profile/patient/encounters/:id', keycloak.protect('realm:patient'), async (req, res) => {
+app.get('/profile/patient/encounters/:id'/*, keycloak.protect('realm:patient')*/, async (req, res) => {
   if (!validate(req, res)) return
   const { id } = req.params
 
   try {
     const response = await axios.get(`/profile/patient/encounters/${id}`, {
-      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+      headers: { Authorization: `${getAccessToken(req)}` },
     })
     res.send({ encounter: response.data })
   } catch (err) {
@@ -1436,13 +1434,13 @@ app.get('/profile/patient/encounters/:id', keycloak.protect('realm:patient'), as
   }
 })
 
-app.get('/profile/patient/relatedEncounters/:id', keycloak.protect('realm:patient'), async (req, res) => {
+app.get('/profile/patient/relatedEncounters/:id'/*, keycloak.protect('realm:patient')*/, async (req, res) => {
   if (!validate(req, res)) return
   const { id } = req.params
 
   try {
     const response = await axios.get(`/profile/patient/relatedEncounters/${id}?includePrescriptions=${req.query.includePrescriptions}&includeSoep=${req.query.includeSoep}`, {
-      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+      headers: { Authorization: `${getAccessToken(req)}` },
     })
     res.send({ encounter: response.data })
   } catch (err) {
@@ -1450,12 +1448,12 @@ app.get('/profile/patient/relatedEncounters/:id', keycloak.protect('realm:patien
   }
 })
 
-app.get('/profile/patient/relatedEncounters', keycloak.protect('realm:patient'), async (req, res) => {
+app.get('/profile/patient/relatedEncounters'/*, keycloak.protect('realm:patient')*/, async (req, res) => {
   if (!validate(req, res)) return
 
   try {
     const response = await axios.get(`/profile/patient/relatedEncounters?lastOnly=${req.query.lastOnly}&includePrescriptions=${req.query.includePrescriptions}&includeSoep=${req.query.includeSoep}`, {
-      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+      headers: { Authorization: `${getAccessToken(req)}` },
     })
     res.send({ encounter: response.data })
   } catch (err) {
@@ -1469,13 +1467,13 @@ app.get('/profile/patient/relatedEncounters', keycloak.protect('realm:patient'),
 // GET /profile/caretaker/dependent/{idDependent}/encounters/{id} 
 // GET /profile/caretaker/dependent/{idDependent}/relatedEncounters/{id_encounter}  
 // GET /profile/caretaker/dependent/{idDependent}/relatedEncounters 
-app.get('/profile/caretaker/dependent/:idDependent/appointments/:id/encounter', keycloak.protect('realm:patient'), async (req, res) => {
+app.get('/profile/caretaker/dependent/:idDependent/appointments/:id/encounter'/*, keycloak.protect('realm:patient')*/, async (req, res) => {
   if (!validate(req, res)) return
   const { idDependent,id } = req.params
 
   try {
     const response = await axios.get(`/profile/caretaker/dependent/${idDependent}/appointments/${id}/encounter`, {
-      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+      headers: { Authorization: `${getAccessToken(req)}` },
     })
     res.send({ encounter: response.data })
   } catch (err) {
@@ -1483,13 +1481,13 @@ app.get('/profile/caretaker/dependent/:idDependent/appointments/:id/encounter', 
   }
 })
 
-app.get('/profile/caretaker/dependent/:idDependent/encounters', keycloak.protect('realm:patient'), async (req, res) => {
+app.get('/profile/caretaker/dependent/:idDependent/encounters'/*, keycloak.protect('realm:patient')*/, async (req, res) => {
   if (!validate(req, res)) return
   const { idDependent } = req.params
 
   try {
     const response = await axios.get(`/profile/caretaker/dependent/${idDependent}/encounters?${req.query.status ? `status=${req.query.status}&` : ''}includePrescriptions=${req.query.includePrescriptions}&includeSoep=${req.query.includeSoep}`, {
-      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+      headers: { Authorization: `${getAccessToken(req)}` },
     })
     res.send({ encounter: response.data })
   } catch (err) {
@@ -1497,13 +1495,13 @@ app.get('/profile/caretaker/dependent/:idDependent/encounters', keycloak.protect
   }
 })
 
-app.get('/profile/caretaker/dependent/:idDependent/encounters/:id', keycloak.protect('realm:patient'), async (req, res) => {
+app.get('/profile/caretaker/dependent/:idDependent/encounters/:id'/*, keycloak.protect('realm:patient')*/, async (req, res) => {
   if (!validate(req, res)) return
   const { idDependent, id } = req.params
 
   try {
     const response = await axios.get(`/profile/caretaker/dependent/${idDependent}/encounters/${id}`, {
-      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+      headers: { Authorization: `${getAccessToken(req)}` },
     })
     res.send({ encounter: response.data })
   } catch (err) {
@@ -1511,13 +1509,13 @@ app.get('/profile/caretaker/dependent/:idDependent/encounters/:id', keycloak.pro
   }
 })
 
-app.get('/profile/caretaker/dependent/:idDependent/relatedEncounters/:id', keycloak.protect('realm:patient'), async (req, res) => {
+app.get('/profile/caretaker/dependent/:idDependent/relatedEncounters/:id'/*, keycloak.protect('realm:patient')*/, async (req, res) => {
   if (!validate(req, res)) return
   const { idDependent, id } = req.params
 
   try {
     const response = await axios.get(`/profile/caretaker/dependent/${idDependent}/relatedEncounters/${id}?includePrescriptions=${req.query.includePrescriptions}&includeSoep=${req.query.includeSoep}`, {
-      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+      headers: { Authorization: `${getAccessToken(req)}` },
     })
     res.send({ encounter: response.data })
   } catch (err) {
@@ -1525,12 +1523,12 @@ app.get('/profile/caretaker/dependent/:idDependent/relatedEncounters/:id', keycl
   }
 })
 
-app.get('/profile/caretaker/dependent/:idDependent/relatedEncounters', keycloak.protect('realm:patient'), async (req, res) => {
+app.get('/profile/caretaker/dependent/:idDependent/relatedEncounters'/*, keycloak.protect('realm:patient')*/, async (req, res) => {
   if (!validate(req, res)) return
   const { idDependent} = req.params
   try {
     const response = await axios.get(`/profile/caretaker/dependent/${idDependent}/relatedEncounters?lastOnly=${req.query.lastOnly}&includePrescriptions=${req.query.includePrescriptions}&includeSoep=${req.query.includeSoep}`, {
-      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+      headers: { Authorization: `${getAccessToken(req)}` },
     })
     res.send({ encounter: response.data })
   } catch (err) {
@@ -1550,21 +1548,19 @@ app.get('/profile/caretaker/dependent/:idDependent/relatedEncounters', keycloak.
 // POST /profile/doctor/appointments/cancel/:id - Cancel appointment by doctor 
 
 app.get(
-  '/profile/doctor/appointments',
-  keycloak.protect('realm:doctor'),
+  '/profile/doctor/appointments', 
+  /*keycloak.protect('realm:doctor'),*/
   query(['start', 'end']).isISO8601().optional(),
   query('status').isString().optional(),
   query('organizationId').isString().optional(),
   async (req, res) => {
     if (!validate(req, res)) return
-
     const { status, start, end, organizationId } = req.query
-
     try {
-      const  resp  = await axios.get<iHub.Appointment[]>(
+      const resp = await axios.get<iHub.Appointment[]>(
         `/profile/doctor/appointments?include=patient${start && end ? `&start=${start}&end=${end}` : ''}${organizationId ? `&organizationId=${organizationId}` : ''}`,
         {
-          headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+          headers: { Authorization: `${getAccessToken(req)}` },
         }
       )
       const { data } = resp
@@ -1572,12 +1568,11 @@ app.get(
         const ids = data.map(appointment => appointment.id);
         let idsOrg: any[] = [];
         if (!organizationId) {
-          const organizations = await axios.get<iHub.Organization[]>('/profile/doctor/organizations', { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+          const organizations = await axios.get<iHub.Organization[]>('/profile/doctor/organizations', { headers: { Authorization: `${getAccessToken(req)}` } })
           idsOrg = organizations.data.map(org =>  org.id)
         } else {
           idsOrg.push(organizationId);
         } 
-        console.log(idsOrg); 
         const coreAppointments = await CoreAppointment.find({ id: { $in: ids }, idOrganization: { $in: idsOrg } })
 
         let FHIRAppointments = [] as (iHub.Appointment & { type: string; status: ICoreAppointment['status'] })[]
@@ -1620,7 +1615,7 @@ app.get(
 
 app.post(
   '/profile/doctor/appointments',
-  keycloak.protect('realm:doctor'),
+  /*keycloak.protect('realm:doctor'),*/
   body('type').isIn(['PrivateEvent']),
   body('idOrganization').isString(),
   body('name').isString(),
@@ -1640,14 +1635,14 @@ app.post(
   }
 )
 
-app.get('/profile/doctor/appointments/:id', keycloak.protect('realm:doctor'), async (req, res) => {
+app.get('/profile/doctor/appointments/:id'/*, keycloak.protect('realm:doctor')*/, async (req, res) => {
   const { id } = req.params
 
   try {
     const { data: FHIRAppointment } = await axios.get<iHub.Appointment>(
       `/profile/doctor/appointments/${id}?include=patient`,
       {
-        headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+        headers: { Authorization: `${getAccessToken(req)}` },
       }
     )
 
@@ -1673,7 +1668,7 @@ app.get('/profile/doctor/appointments/:id', keycloak.protect('realm:doctor'), as
 
 app.post(
   '/profile/doctor/appointments/:id',
-  keycloak.protect('realm:doctor'),
+  /*keycloak.protect('realm:doctor'),*/
   param('id').isString(),
   body('status').isIn(['closed', 'open']),
   async (req, res) => {
@@ -1685,10 +1680,10 @@ app.post(
     try {
       // Get Appointment and check for access rights
       const req1 = axios.get<iHub.Appointment>(`/profile/doctor/appointments/${id}`, {
-        headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+        headers: { Authorization: `${getAccessToken(req)}` },
       })
       const req2 = axios.get<iHub.Appointment>(`/profile/doctor`, {
-        headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+        headers: { Authorization: `${getAccessToken(req)}` },
       })
       const [resp, respp] = await Promise.all([req1, req2])
 
@@ -1709,7 +1704,7 @@ app.post(
   }
 )
 
-app.delete('/profile/doctor/appointments/:id', keycloak.protect('realm:doctor'), async (req, res) => {
+app.delete('/profile/doctor/appointments/:id'/*, keycloak.protect('realm:doctor')*/, async (req, res) => {
   try {
     await Appointment.deleteOne({ _id: req.params.id, doctorId: req.userId })
     res.sendStatus(200)
@@ -1721,7 +1716,7 @@ app.delete('/profile/doctor/appointments/:id', keycloak.protect('realm:doctor'),
 async function cancelAppointment(req : express.Request,res:express.Response, role : String) {
   try {
     const resp =  await axios.post(`/profile/${role}/appointments/cancel/${req.params.id}`,{}, {
-      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+      headers: { Authorization: `${getAccessToken(req)}` },
     })
     console.log("status from core-health: ", resp.status)
     await CoreAppointment.updateOne({ id: req.params.id },{status:'cancelled'})
@@ -1732,7 +1727,7 @@ async function cancelAppointment(req : express.Request,res:express.Response, rol
 }
 
 app.post('/profile/doctor/appointments/cancel/:id',
-  keycloak.protect('realm:doctor'),
+  /*keycloak.protect('realm:doctor'),*/
   async (req, res) => {
   cancelAppointment(req,res,'doctor')
   })
@@ -1742,10 +1737,10 @@ app.post('/profile/doctor/appointments/cancel/:id',
 // Protected Routes for managing profile prescriptions
 // GET /profile/patient/prescriptions - Read prescriptions of Patient
 //
-app.get('/profile/patient/prescriptions', keycloak.protect('realm:patient'), async (req, res) => {
+app.get('/profile/patient/prescriptions'/*, keycloak.protect('realm:patient')*/, async (req, res) => {
   try {
     const { data } = await axios.get<iHub.Appointment[]>('/profile/patient/prescriptions', {
-      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+      headers: { Authorization: `${getAccessToken(req)}` },
     })
 
     res.send({ prescriptions: data })
@@ -1762,7 +1757,7 @@ app.get('/profile/patient/prescriptions', keycloak.protect('realm:patient'), asy
 // POST /profile/patient/appointments/cancel/:id - Cancel appointment by doctor 
 
 app.get('/profile/patient/appointments',
-  keycloak.protect('realm:patient'),
+  /*keycloak.protect('realm:patient'),*/
   query(['start']).isISO8601(), //it is mandatory
   query(['end']).isISO8601().optional(),
   async (req, res) => {
@@ -1771,7 +1766,7 @@ app.get('/profile/patient/appointments',
       const { data } = await axios.get<iHub.Appointment[]>(
             `/profile/patient/appointments?start=${start}&include=doctor${end?`&end=${end}`:''}`,
         {
-          headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+          headers: { Authorization: `${getAccessToken(req)}` },
         }
       )
 
@@ -1796,14 +1791,14 @@ app.get('/profile/patient/appointments',
     }
   })
 
-app.get('/profile/patient/appointments/:id', keycloak.protect('realm:patient'), async (req, res) => {
+app.get('/profile/patient/appointments/:id'/*, keycloak.protect('realm:patient')*/, async (req, res) => {
   const { id } = req.params
 
   try {
     const { data: FHIRAppointment } = await axios.get<iHub.Appointment>(
       `/profile/patient/appointments/${id}?include=doctor`,
       {
-        headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+        headers: { Authorization: `${getAccessToken(req)}` },
       }
     )
 
@@ -1829,7 +1824,7 @@ app.get('/profile/patient/appointments/:id', keycloak.protect('realm:patient'), 
 
 app.post(
   '/profile/patient/appointments',
-  keycloak.protect('realm:patient'),
+  /*keycloak.protect('realm:patient'),*/
   body('doctorId').isString(),
   body('start').isISO8601(),
   body('appointmentType').isString(),
@@ -1860,7 +1855,7 @@ app.post(
         '/profile/patient/appointments',
         { doctorId, start, end: endDate.toISOString(),appointmentType, organizationId },
         {
-          headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+          headers: { Authorization: `${getAccessToken(req)}` },
         }
       )
       const x = await CoreAppointment.findByIdAndUpdate(appointment._id, { $set: { id: resp.data.id } })
@@ -1874,7 +1869,7 @@ app.post(
 )
 
 app.post('/profile/patient/appointments/cancel/:id',
-  keycloak.protect('realm:patient'),
+  /*keycloak.protect('realm:patient'),*/
   async (req, res) => {
   cancelAppointment(req,res,'patient')
   })
@@ -1885,11 +1880,11 @@ app.post('/profile/patient/appointments/cancel/:id',
 // GET /profile/caretaker/dependent/:id/prescriptions - Read prescriptions of dependent 
 //
 
-app.get('/profile/caretaker/dependent/:id/prescriptions', keycloak.protect('realm:patient'), async (req, res) => {
+app.get('/profile/caretaker/dependent/:id/prescriptions'/*, keycloak.protect('realm:patient')*/, async (req, res) => {
   const { id } = req.params
   try {
     const { data } = await axios.get<iHub.Appointment[]>(`/profile/caretaker/dependent/${id}/prescriptions`, {
-      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+      headers: { Authorization: `${getAccessToken(req)}` },
     })
 
     res.send({ prescriptions: data })
@@ -1906,13 +1901,13 @@ app.get('/profile/caretaker/dependent/:id/prescriptions', keycloak.protect('real
 // POST /profile/caretaker/dependent/:id/appointments - Create appointment for dependent
 // POST /profile/caretaker/appointments/cancel/:id - Cancel appointment by caretaker 
 
-app.get('/profile/caretaker/dependent/:id/appointments', keycloak.protect('realm:patient'), async (req, res) => {
+app.get('/profile/caretaker/dependent/:id/appointments'/*, keycloak.protect('realm:patient')*/, async (req, res) => {
   const { id } = req.params
   try {
     const { data } = await axios.get<iHub.Appointment[]>(
       `/profile/caretaker/dependent/${id}/appointments?start=${req.query.start}&include=doctor`,
       {
-        headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+        headers: { Authorization: `${getAccessToken(req)}` },
       }
     )
 
@@ -1937,13 +1932,13 @@ app.get('/profile/caretaker/dependent/:id/appointments', keycloak.protect('realm
   }
 })
 
-app.get('/profile/caretaker/dependent/:idDependent/appointments/:id', keycloak.protect('realm:patient'), async (req, res) => {
+app.get('/profile/caretaker/dependent/:idDependent/appointments/:id'/*, keycloak.protect('realm:patient')*/, async (req, res) => {
   const { idDependent,id } = req.params
   try {
     const { data: FHIRAppointment } = await axios.get<iHub.Appointment>(
       `/profile/caretaker/dependent/${idDependent}/appointments/${id}?include=doctor`,
       {
-        headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+        headers: { Authorization: `${getAccessToken(req)}` },
       }
     )
 
@@ -1968,7 +1963,7 @@ app.get('/profile/caretaker/dependent/:idDependent/appointments/:id', keycloak.p
 })
 app.post(
   '/profile/caretaker/dependent/:id/appointments',
-  keycloak.protect('realm:patient'),
+  /*keycloak.protect('realm:patient'),*/
   body('doctorId').isString(),
   body('start').isISO8601(),
   body('appointmentType').isString(),
@@ -1999,7 +1994,7 @@ app.post(
         `/profile/caretaker/dependent/${id}/appointments`,
         { doctorId, start, end: endDate.toISOString(),appointmentType,organizationId },
         {
-          headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+          headers: { Authorization: `${getAccessToken(req)}` },
         }
       )
       const x = await CoreAppointment.findByIdAndUpdate(appointment._id, { $set: { id: resp.data.id } })
@@ -2012,27 +2007,27 @@ app.post(
   }
 )
 
-app.get('/profile/caretaker/dependent/:idDependent/recent/doctors', keycloak.protect('realm:patient'), async (req, res) => {
+app.get('/profile/caretaker/dependent/:idDependent/recent/doctors'/*, keycloak.protect('realm:patient')*/, async (req, res) => {
   const queryString = req.originalUrl.split('?')[1]
   const { idDependent } = req.params
   const endpoint = `/profile/caretaker/dependent/${idDependent}/recent/doctors${queryString ? `?${queryString}` : ''}`;
   await getDoctorsWithAvailability(req, res, endpoint, queryString, getAccessToken(req));
 })
 
-app.get('/profile/caretaker/dependent/:idDependent/favorite/doctors/', keycloak.protect('realm:patient'), async (req, res) => {
+app.get('/profile/caretaker/dependent/:idDependent/favorite/doctors/'/*, keycloak.protect('realm:patient')*/, async (req, res) => {
   const queryString = req.originalUrl.split('?')[1]
   const { idDependent } = req.params
   const endpoint = `/profile/caretaker/dependent/${idDependent}/favorite/doctors${queryString ? `?${queryString}` : ''}`;
   await getDoctorsWithAvailability(req, res, endpoint, queryString, getAccessToken(req));
 })
 
-app.put('/profile/caretaker/dependent/:idDependent/favorite/doctor/:idDoctor', keycloak.protect('realm:patient'), async (req, res) => {
+app.put('/profile/caretaker/dependent/:idDependent/favorite/doctor/:idDoctor'/*, keycloak.protect('realm:patient')*/, async (req, res) => {
   const queryString = req.query.addFavorite!=undefined?req.query.addFavorite:true;
   try {
     const resp = await axios.put(
       `/profile/caretaker/dependent/${req.params.idDependent}/favorite/doctor/${req.params.idDoctor}?addFavorite=${queryString}`,{},
       {
-        headers: { Authorization: `Bearer ${getAccessToken(req)}` }
+        headers: { Authorization: `${getAccessToken(req)}` }
       }
     )
     res.status(resp.status).send(resp.data)
@@ -2043,7 +2038,7 @@ app.put('/profile/caretaker/dependent/:idDependent/favorite/doctor/:idDoctor', k
 
 
 app.post('/profile/caretaker/appointments/cancel/:id',
-  keycloak.protect('realm:patient'),
+  /*keycloak.protect('realm:patient'),*/
   async (req, res) => {
   cancelAppointment(req,res,'caretaker')
   })
@@ -2056,7 +2051,7 @@ app.post('/profile/caretaker/appointments/cancel/:id',
 // 
 
 app.get('/profile/patient/doctors',
-  keycloak.protect('realm:patient'),
+  /*keycloak.protect('realm:patient'),*/
   async (req, res) => {
     const queryString = req.originalUrl.split('?')[1]
     const endpoint = `/profile/patient/doctors${queryString ? `?${queryString}` : ''}`;
@@ -2070,7 +2065,7 @@ app.get('/profile/patient/doctors/:id',
       const resp = await axios.get<iHub.Doctor>(
         `/profile/patient/doctors/${req.params.id}`,
         {
-          headers: { Authorization: `Bearer ${getAccessToken(req)}` }
+          headers: { Authorization: `${getAccessToken(req)}` }
         }
       )
       res.send(resp.data)
@@ -2079,25 +2074,25 @@ app.get('/profile/patient/doctors/:id',
     }
 })
 
-app.get('/profile/patient/recent/doctors', keycloak.protect('realm:patient'), async (req, res) => {
+app.get('/profile/patient/recent/doctors'/*, keycloak.protect('realm:patient')*/, async (req, res) => {
   const queryString = req.originalUrl.split('?')[1]
   const endpoint = `/profile/patient/recent/doctors${queryString ? `?${queryString}` : ''}`;
   await getDoctorsWithAvailability(req, res, endpoint, queryString, getAccessToken(req));
 })
 
-app.get('/profile/patient/favorite/doctors/', keycloak.protect('realm:patient'), async (req, res) => {
+app.get('/profile/patient/favorite/doctors/'/*, keycloak.protect('realm:patient')*/, async (req, res) => {
   const queryString = req.originalUrl.split('?')[1]
   const endpoint = `/profile/patient/favorite/doctors${queryString ? `?${queryString}` : ''}`;
   await getDoctorsWithAvailability(req, res, endpoint, queryString, getAccessToken(req));
 })
 
-app.put('/profile/patient/favorite/doctor/:idDoctor', keycloak.protect('realm:patient'), async (req, res) => {
+app.put('/profile/patient/favorite/doctor/:idDoctor'/*, keycloak.protect('realm:patient')*/, async (req, res) => {
   const queryString = req.query.addFavorite!=undefined?req.query.addFavorite:true;
   try {
     const resp = await axios.put(
       `/profile/patient/favorite/doctor/${req.params.idDoctor}?addFavorite=${queryString}`,{},
       {
-        headers: { Authorization: `Bearer ${getAccessToken(req)}` }
+        headers: { Authorization: `${getAccessToken(req)}` }
       }
     )
     res.status(resp.status).send(resp.data)
@@ -2108,7 +2103,7 @@ app.put('/profile/patient/favorite/doctor/:idDoctor', keycloak.protect('realm:pa
 
 app.get(
   '/profile/patient/doctors/:idDoctor/availability',
-  keycloak.protect('realm:patient'),
+  /*keycloak.protect('realm:patient')*/
   param('idDoctor').isString(),
   query('organizationIdList').isString().optional(),
   query(['start', 'end']).isISO8601(),
@@ -2120,7 +2115,7 @@ app.get(
 
 app.get(
   '/profile/caretaker/dependent/:idDependet/doctors/:idDoctor/availability',
-  keycloak.protect('realm:patient'),
+  /*keycloak.protect('realm:patient')*/
   param('idDependet').isString(),
   param('idDoctor').isString(),
   query('organizationIdList').isString().optional(),
@@ -2137,22 +2132,22 @@ app.get(
 // POST /profile/patient/diagnosticReport - Create diagnostic report from Patient profile
 // POST /profile/patient/qrcode/generate - QR code generate from Patient profile
 
-app.get('/profile/patient/diagnosticReports', keycloak.protect('realm:patient'), async (req, res) => {
+app.get('/profile/patient/diagnosticReports'/*, keycloak.protect('realm:patient')*/, async (req, res) => {
   try {
-    const resp = await axios.get('/profile/patient/diagnosticReports', { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    const resp = await axios.get('/profile/patient/diagnosticReports', { headers: { Authorization: `${getAccessToken(req)}` } })
     res.status(resp.status).send(resp.data)
   } catch (err) {
     handleError(req, res, err)
   }
 })
 
-app.get('/profile/patient/diagnosticReport/:id', keycloak.protect('realm:patient'), async (req, res) => {
+app.get('/profile/patient/diagnosticReport/:id'/*, keycloak.protect('realm:patient')*/, async (req, res) => {
   if (!validate(req, res)) return
   const { id } = req.params
 
   try {
     const response = await axios.get(`/profile/patient/diagnosticReport/${id}`, {
-      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+      headers: { Authorization: `${getAccessToken(req)}` },
     })
     res.status(response.status).send(response.data)
   } catch (err) {
@@ -2160,21 +2155,21 @@ app.get('/profile/patient/diagnosticReport/:id', keycloak.protect('realm:patient
   }
 })
 
-app.post('/profile/patient/diagnosticReport', keycloak.protect('realm:patient'), async (req, res) => {
+app.post('/profile/patient/diagnosticReport'/*, keycloak.protect('realm:patient')*/, async (req, res) => {
   const payload = req.body
   const startDate = new Date(payload.effectiveDate)
   if (startDate > new Date()) return res.status(400).send({ message: "invalid effectiveDate" })
   try {
-    const resp = await axios.post('/profile/patient/diagnosticReport', payload, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    const resp = await axios.post('/profile/patient/diagnosticReport', payload, { headers: { Authorization: `${getAccessToken(req)}` } })
     res.status(resp.status).send(resp.data)
   } catch (err) {
     handleError(req, res, err)
   }
 })
 
-app.post('/profile/patient/qrcode/generate', keycloak.protect('realm:patient'), async (req, res) => {
+app.post('/profile/patient/qrcode/generate'/*, keycloak.protect('realm:patient')*/, async (req, res) => {
   try {
-    const resp = await axios.post('/profile/patient/qrcode/generate', {}, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    const resp = await axios.post('/profile/patient/qrcode/generate', {}, { headers: { Authorization: `${getAccessToken(req)}` } })
     res.status(resp.status).send(resp.data)
   } catch (err) {
     handleError(req, res, err)
@@ -2185,13 +2180,13 @@ app.post('/profile/patient/qrcode/generate', keycloak.protect('realm:patient'), 
 // GET /profile/caretaker/dependent/:id/diagnosticReports - Read diagnostic reports of Patient
 // GET /profile/caretaker/dependent/:id/diagnosticReports/:id - Read diagnostic report of Patient by id
 // POST /profile/caretaker/dependent/:id/diagnosticReport - Create diagnostic report from Patient profile
-app.get('/profile/caretaker/dependent/:id/diagnosticReports', keycloak.protect('realm:patient'), async (req, res) => {
+app.get('/profile/caretaker/dependent/:id/diagnosticReports'/*, keycloak.protect('realm:patient')*/, async (req, res) => {
   if (!validate(req, res)) return
   const { id } = req.params
 
   try {
     const response = await axios.get(`/profile/caretaker/dependent/${id}/diagnosticReports`, {
-      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+      headers: { Authorization: `${getAccessToken(req)}` },
     })
     res.status(response.status).send(response.data)
   } catch (err) {
@@ -2199,13 +2194,13 @@ app.get('/profile/caretaker/dependent/:id/diagnosticReports', keycloak.protect('
   }
 })
 
-app.get('/profile/caretaker/dependent/:idDependent/diagnosticReport/:id', keycloak.protect('realm:patient'), async (req, res) => {
+app.get('/profile/caretaker/dependent/:idDependent/diagnosticReport/:id'/*, keycloak.protect('realm:patient')*/, async (req, res) => {
   if (!validate(req, res)) return
   const { idDependent, id } = req.params
 
   try {
     const response = await axios.get(`/profile/caretaker/dependent/${idDependent}/diagnosticReport/${id}`, {
-      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+      headers: { Authorization: `${getAccessToken(req)}` },
     })
     res.status(response.status).send(response.data)
   } catch (err) {
@@ -2213,14 +2208,14 @@ app.get('/profile/caretaker/dependent/:idDependent/diagnosticReport/:id', keyclo
   }
 })
 
-app.post('/profile/caretaker/dependent/:id/diagnosticReport', keycloak.protect('realm:patient'), async (req, res) => {
+app.post('/profile/caretaker/dependent/:id/diagnosticReport'/*, keycloak.protect('realm:patient')*/, async (req, res) => {
   const payload = req.body
   const { id } = req.params
   const startDate = new Date(payload.effectiveDate)
   if (startDate > new Date()) return res.status(400).send({ message: "invalid effectiveDate" })
 
   try {
-    const resp = await axios.post(`/profile/caretaker/dependent/${id}/diagnosticReport`, payload, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    const resp = await axios.post(`/profile/caretaker/dependent/${id}/diagnosticReport`, payload, { headers: { Authorization: `${getAccessToken(req)}` } })
     res.status(resp.status).send(resp.data)
   } catch (err) {
     handleError(req, res, err)
@@ -2243,7 +2238,7 @@ app.post('/profile/organization-manager/organization', keycloak.protect('realm:o
   const payload = req.body
   try {
     const resp =  await axios.post('/profile/organization-manager/organization', payload, {
-      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+      headers: { Authorization: `${getAccessToken(req)}` },
     })
     res.status(resp.status).send(resp.data)
   } catch (err) {
@@ -2254,7 +2249,7 @@ app.post('/profile/organization-manager/organization', keycloak.protect('realm:o
 app.get('/profile/organization-manager/organization', keycloak.protect('realm:organization_manager'), async (req, res) => {
   try {
     const resp = await axios.get(`/profile/organization-manager/organization`,
-      { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+      { headers: { Authorization: `${getAccessToken(req)}` } })
     res.status(resp.status).send(resp.data)
   } catch (err) {
     handleError(req, res, err)
@@ -2264,7 +2259,7 @@ app.get('/profile/organization-manager/organization', keycloak.protect('realm:or
 app.get('/profile/organization-manager/organization/patient/subscriptionRequests', keycloak.protect('realm:organization_manager'), async (req, res) => {
   try {
     const resp = await axios.get(`/profile/organization-manager/organization/patient/subscriptionRequests`,
-      { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+      { headers: { Authorization: `${getAccessToken(req)}` } })
     res.status(resp.status).send(resp.data)
   } catch (err) {
     handleError(req, res, err)
@@ -2275,7 +2270,7 @@ app.put('/profile/organization-manager/organization/patient/subscriptionRequests
   const payload = req.body
   try {
     const resp =  await axios.put('/profile/organization-manager/organization/patient/subscriptionRequests', payload, {
-      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+      headers: { Authorization: `${getAccessToken(req)}` },
     })
     res.status(resp.status).send(resp.data)
   } catch (err) {
@@ -2287,7 +2282,7 @@ app.put('/profile/organization-manager/organization/:idOrganization', keycloak.p
   const payload = req.body
   try {
     const resp =  await axios.put(`/profile/organization-manager/organization/${req.params.idOrganization}`, payload, {
-      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+      headers: { Authorization: `${getAccessToken(req)}` },
     })
     res.status(resp.status).send(resp.data)
   } catch (err) {
@@ -2299,7 +2294,7 @@ app.put('/profile/organization-manager/organization/:idOrganization/settings', k
   const payload = req.body
   try {
     const resp =  await axios.put(`/profile/organization-manager/organization/${req.params.idOrganization}/settings`, payload, {
-      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+      headers: { Authorization: `${getAccessToken(req)}` },
     })
     res.status(resp.status).send(resp.data)
   } catch (err) {
@@ -2329,7 +2324,7 @@ app.post('/profile/organization-manager/doctorRole', keycloak.protect('realm:org
   const payload = req.body
   try {
     const resp =  await axios.post('/profile/organization-manager/doctorRole', payload, {
-      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+      headers: { Authorization: `${getAccessToken(req)}` },
     })
     res.status(resp.status).send(resp.data)
   } catch (err) {
@@ -2340,7 +2335,7 @@ app.post('/profile/organization-manager/doctorRole', keycloak.protect('realm:org
 app.get('/profile/organization-manager/doctorRole', keycloak.protect('realm:organization_manager'), async (req, res) => {
   try {
     const resp = await axios.get(`/profile/organization-manager/doctorRole`,
-      { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+      { headers: { Authorization: `${getAccessToken(req)}` } })
     res.status(resp.status).send(resp.data)
   } catch (err) {
     handleError(req, res, err)
@@ -2354,7 +2349,7 @@ app.get('/profile/organization-manager/doctorRole', keycloak.protect('realm:orga
 
 app.get('/presigned', keycloak.protect(), async (req, res) => {
   try {
-    const resp = await axios.get('/s3/presigned', { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+    const resp = await axios.get('/s3/presigned', { headers: { Authorization: `${getAccessToken(req)}` } })
     res.send(resp.data)
   } catch (err) {
     handleError(req, res, err)
@@ -2390,7 +2385,7 @@ app.post('/profile/admin/archiveAppointments', keycloak.protect('realm:admin'), 
 app.post('/profile/admin/farmanuario/synchronize', keycloak.protect('realm:admin'), async (req, res) => {
   try {
     const resp =  await axios.post('/farmanuario/synchronize', {},  {
-      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+      headers: { Authorization: `${getAccessToken(req)}` },
     })
     res.send('Status: ' + resp.status + ' Data: ' + resp.data)
   } catch (err) {
