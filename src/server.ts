@@ -383,7 +383,18 @@ app.get('/profile/doctor/patient/:patientId/encounters/:encounterId', keycloak.p
     handleError(req, res, err)
   }
 });
-
+app.get('/profile/doctor/patient/:patientId/encounter/:encounterId/studyOrders', keycloak.protect('realm:doctor'), async (req, res) => {
+  if (!validate(req, res)) return
+  const { patientId, encounterId } = req.params
+  try {
+    const response = await axios.get(`/profile/doctor/patient/${patientId}/encounter/${encounterId}/studyOrders`, {
+      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+    })
+    res.send(response.data)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+});
 //
 // MANAGE Patient activation:
 // Routes for managing activation & patient from profile Doctor
