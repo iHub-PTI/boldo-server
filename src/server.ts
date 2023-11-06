@@ -687,7 +687,7 @@ app.get('/profile/doctor/studyResults', keycloak.protect('realm:doctor'), async 
 // GET /profile/patient/serviceRequests - obtaint a list of study order group by encounter
 // GET /profile/patient/encounter/:id/serviceRequests - obtaint a list of study order for an encounter
 // GET /profile/patient/serviceRequest/:id - obtaint a study order by id
-// GET /profile/patient/serviceRequest/reports?ids=[list compound ids] - Prints OrderStudy by a list of Ids
+// GET /profile/patient/serviceRequest/reports?ids=[list ids] - Prints OrderStudy by a list of Ids
 
 app.get('/profile/patient/serviceRequests', keycloak.protect('realm:patient'), async (req, res) => {
   try {
@@ -754,9 +754,10 @@ app.get('/profile/patient/serviceRequests/reports',
 
 // MANAGE Service request from patient caretaker profile:
 // Routes for managing dependent patient  service request
-// GET /profile/caretaker/dependent/:idDependent/serviceRequests - obtaint a list of study order group by encounter
-// GET /profile/caretaker/dependent/:idDependent/encounter/:id/serviceRequests - obtaint a list of study order for an encounter
-// GET /profile/caretaker/dependent/:idDependent/serviceRequest/:id - obtaint a study order by id
+// GET /profile/caretaker/dependent/:idDependent/serviceRequests - obtains a list of study order group by encounter
+// GET /profile/caretaker/dependent/:idDependent/encounter/:id/serviceRequests - obtains a list of study order for an encounter
+// GET /profile/caretaker/dependent/:idDependent/serviceRequest/:id - obtains a study order by id
+// GET /profile/caretaker/dependent/:idDependent/serviceRequest/reports?ids=[list ids] - Prints OrderStudy from Dependent
 
 app.get('/profile/caretaker/dependent/:idDependent/serviceRequests', keycloak.protect('realm:patient'), async (req, res) => {
   const { idDependent } = req.params
@@ -787,6 +788,40 @@ app.get('/profile/caretaker/dependent/:idDependent/serviceRequest/:id', keycloak
     handleError(req, res, err)
   }
 })
+
+app.get('/profile/caretaker/dependent/:idDependent/serviceRequests/reports',
+    cors({ origin: AllowedOrigins, credentials: true, exposedHeaders:['Content-Disposition'] }),
+    keycloak.protect('realm:patient'), async (req, res) => {
+      const { idDependent } = req.params
+      if (!validate(req, res)) return
+
+      let reportsParam = genericQueryParamsMaker(req.query)
+
+      try {
+        const response = await axios.get(`/profile/caretaker/dependent/${idDependent}/serviceRequests/reports?${reportsParam? `${reportsParam}`: ''}`, {
+          responseType: 'arraybuffer',
+          headers: {
+            Authorization: `Bearer ${getAccessToken(req)}`,
+            'Content-Type': 'application/json',
+            'Accept': 'application/pdf'
+          },
+        })
+
+        if (response.status===200){ //There's a PDF in the buffer
+          let filename = response.headers['content-disposition']?
+              response.headers['content-disposition'].split('filename="')[1].split('.')[0]:'consulta' //obtains file name from header if exist
+
+          res.setHeader('Content-Type', 'application/pdf');
+          res.setHeader('Content-Disposition', `attachment; filename=${filename}.pdf`);
+          res.setHeader('Content-Length', response.data.length)
+          res.end(response.data)
+        }else{ // Other error codes: 204, 403, 404, 500
+          res.sendStatus(response.status);
+        }
+      } catch (err) {
+        handleError(req, res, err)
+      }
+    })
 
 
 //
