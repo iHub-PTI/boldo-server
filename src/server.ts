@@ -201,7 +201,7 @@ app.put(
               )
               if (result) {
                 update = false;
-                handleError(req, res, { status: 400, message: "openHours settings overlay between organizations " + blocks[index].idOrganization + " and " + blocks[index+1].idOrganization });
+                handleError(req, res, { status: 400, message: "openHours settings overlay between organizations " + blocks[index].idOrganization + " and " + blocks[i].idOrganization });
                 return;
               }             
             }
@@ -383,7 +383,18 @@ app.get('/profile/doctor/patient/:patientId/encounters/:encounterId', keycloak.p
     handleError(req, res, err)
   }
 });
-
+app.get('/profile/doctor/patient/:patientId/encounter/:encounterId/studyOrders', keycloak.protect('realm:doctor'), async (req, res) => {
+  if (!validate(req, res)) return
+  const { patientId, encounterId } = req.params
+  try {
+    const response = await axios.get(`/profile/doctor/patient/${patientId}/encounter/${encounterId}/studyOrders`, {
+      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+    })
+    res.send(response.data)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+});
 //
 // MANAGE Patient activation:
 // Routes for managing activation & patient from profile Doctor
@@ -676,6 +687,7 @@ app.get('/profile/doctor/studyResults', keycloak.protect('realm:doctor'), async 
 // GET /profile/patient/serviceRequests - obtaint a list of study order group by encounter
 // GET /profile/patient/encounter/:id/serviceRequests - obtaint a list of study order for an encounter
 // GET /profile/patient/serviceRequest/:id - obtaint a study order by id
+// GET /profile/patient/serviceRequest/reports?ids=[list ids] - Prints OrderStudy by a list of Ids
 
 app.get('/profile/patient/serviceRequests', keycloak.protect('realm:patient'), async (req, res) => {
   try {
@@ -706,11 +718,46 @@ app.get('/profile/patient/serviceRequest/:id', keycloak.protect('realm:patient')
   }
 })
 
+app.get('/profile/patient/serviceRequests/reports',
+    cors({ origin: AllowedOrigins, credentials: true, exposedHeaders:['Content-Disposition'] }),
+    keycloak.protect('realm:patient'), async (req, res) => {
+      if (!validate(req, res)) return
+
+      let reportsParam = genericQueryParamsMaker(req.query)
+
+      try {
+        const response = await axios.get(`/profile/patient/serviceRequests/reports?${reportsParam? `${reportsParam}`: ''}`, {
+          responseType: 'arraybuffer',
+          headers: {
+            Authorization: `Bearer ${getAccessToken(req)}`,
+            'Content-Type': 'application/json',
+            'Accept': 'application/pdf'
+          },
+        })
+
+        if (response.status===200){ //There's a PDF in the buffer
+          let filename = response.headers['content-disposition']?
+              response.headers['content-disposition'].split('filename="')[1].split('.')[0]:'consulta' //obtains file name from header if exist
+
+          res.setHeader('Content-Type', 'application/pdf');
+          res.setHeader('Content-Disposition', `attachment; filename=${filename}.pdf`);
+          res.setHeader('Content-Length', response.data.length)
+          res.end(response.data)
+        }else{ // Other error codes: 204, 403, 404, 500
+          res.sendStatus(response.status);
+        }
+      } catch (err) {
+        handleError(req, res, err)
+      }
+    })
+
+
 // MANAGE Service request from patient caretaker profile:
 // Routes for managing dependent patient  service request
-// GET /profile/caretaker/dependent/:idDependent/serviceRequests - obtaint a list of study order group by encounter
-// GET /profile/caretaker/dependent/:idDependent/encounter/:id/serviceRequests - obtaint a list of study order for an encounter
-// GET /profile/caretaker/dependent/:idDependent/serviceRequest/:id - obtaint a study order by id
+// GET /profile/caretaker/dependent/:idDependent/serviceRequests - obtains a list of study order group by encounter
+// GET /profile/caretaker/dependent/:idDependent/encounter/:id/serviceRequests - obtains a list of study order for an encounter
+// GET /profile/caretaker/dependent/:idDependent/serviceRequest/:id - obtains a study order by id
+// GET /profile/caretaker/dependent/:idDependent/serviceRequest/reports?ids=[list ids] - Prints OrderStudy from Dependent
 
 app.get('/profile/caretaker/dependent/:idDependent/serviceRequests', keycloak.protect('realm:patient'), async (req, res) => {
   const { idDependent } = req.params
@@ -741,6 +788,40 @@ app.get('/profile/caretaker/dependent/:idDependent/serviceRequest/:id', keycloak
     handleError(req, res, err)
   }
 })
+
+app.get('/profile/caretaker/dependent/:idDependent/serviceRequests/reports',
+    cors({ origin: AllowedOrigins, credentials: true, exposedHeaders:['Content-Disposition'] }),
+    keycloak.protect('realm:patient'), async (req, res) => {
+      const { idDependent } = req.params
+      if (!validate(req, res)) return
+
+      let reportsParam = genericQueryParamsMaker(req.query)
+
+      try {
+        const response = await axios.get(`/profile/caretaker/dependent/${idDependent}/serviceRequests/reports?${reportsParam? `${reportsParam}`: ''}`, {
+          responseType: 'arraybuffer',
+          headers: {
+            Authorization: `Bearer ${getAccessToken(req)}`,
+            'Content-Type': 'application/json',
+            'Accept': 'application/pdf'
+          },
+        })
+
+        if (response.status===200){ //There's a PDF in the buffer
+          let filename = response.headers['content-disposition']?
+              response.headers['content-disposition'].split('filename="')[1].split('.')[0]:'consulta' //obtains file name from header if exist
+
+          res.setHeader('Content-Type', 'application/pdf');
+          res.setHeader('Content-Disposition', `attachment; filename=${filename}.pdf`);
+          res.setHeader('Content-Length', response.data.length)
+          res.end(response.data)
+        }else{ // Other error codes: 204, 403, 404, 500
+          res.sendStatus(response.status);
+        }
+      } catch (err) {
+        handleError(req, res, err)
+      }
+    })
 
 
 //
@@ -2401,18 +2482,14 @@ app.post('/profile/admin/farmanuario/synchronize', keycloak.protect('realm:admin
 
 //
 // REPORTS [open endpoint]
-// GET /reports/:report_identifier - Prescription verification URL
-app.get('/reports/:id',
-  param('id').isNumeric(),
-  query('verification_code').isString(),
-    async (req:express.Request, res:express.Response) => {
-  if (!validate(req, res)){ return }
-
-  const { id:reportId } = req.params
-    const { verification_code: verificationCode } = req.query
-
+// GET /reports/:report_identifier_compound_code - Prescription verification URL
+app.get('/reports/:id_compound_code',
+  param('id_compound_code').isString(),
+  async (req:express.Request, res:express.Response) => {
+    if (!validate(req, res)){ return }
+    const { id_compound_code: reportCompoundCode } = req.params
     try {
-      const response = await axios.get(`/reports/${reportId}?verification_code=${verificationCode}`)
+      const response = await axios.get(`/reports/${reportCompoundCode}`)
       res.set('Content-Type', 'text/html');
       res.end(response.data)
     } catch (err) {
