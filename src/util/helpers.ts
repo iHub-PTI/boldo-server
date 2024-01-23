@@ -296,8 +296,11 @@ export async function getDoctorsWithAvailability(req: express.Request, res: expr
       }
     )
     if(resp.data.items==null) {
-      res.send({ items: [], total: 0 })
+      res.send({ items: [], total: 0 });
     } else {
+      res.send({ items: resp.data.items, total: resp.data.total });
+    }
+    /*else {
       let doctorsIHub = resp.data.items;
       let typeOfAvailabilityParam = "";
       if (queryString) {
@@ -325,7 +328,7 @@ export async function getDoctorsWithAvailability(req: express.Request, res: expr
         })
       )
       res.send({ items: doctorsWithNextAvailability, total: resp.data.total })
-    }
+    }*/
   } catch (err) {
     handleError(req, res, err)
   }
