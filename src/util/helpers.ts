@@ -270,8 +270,9 @@ export async function doctorAvailability(req: express.Request, res: express.Resp
         if (typeOfAvailabilityParam != "") {
           availabilities = availabilities.filter((w: any) => w.appointmentType.includes(typeOfAvailabilityParam));
         }
-        const nextAvailability = await calculateNextAvailability(doctorId, idOrganization, accessToken, typeOfAvailabilityParam, patientType, dependentId);          
-        availabilitiesBlocks.push({ idOrganization: idOrganization, nameOrganization: commonOrganizations.data.find(org => org.id == idOrganization)?.name, availabilities, nextAvailability });  
+        //const nextAvailability = await calculateNextAvailability(doctorId, idOrganization, accessToken, typeOfAvailabilityParam, patientType, dependentId);          
+        //availabilitiesBlocks.push({ idOrganization: idOrganization, nameOrganization: commonOrganizations.data.find(org => org.id == idOrganization)?.name, availabilities, nextAvailability });  
+        availabilitiesBlocks.push({ idOrganization: idOrganization, nameOrganization: commonOrganizations.data.find(org => org.id == idOrganization)?.name, availabilities });  
       }
     } catch (err) {
       console.log(err)
@@ -296,8 +297,11 @@ export async function getDoctorsWithAvailability(req: express.Request, res: expr
       }
     )
     if(resp.data.items==null) {
-      res.send({ items: [], total: 0 })
+      res.send({ items: [], total: 0 });
     } else {
+      res.send({ items: resp.data.items, total: resp.data.total });
+    }
+    /*else {
       let doctorsIHub = resp.data.items;
       let typeOfAvailabilityParam = "";
       if (queryString) {
@@ -325,7 +329,7 @@ export async function getDoctorsWithAvailability(req: express.Request, res: expr
         })
       )
       res.send({ items: doctorsWithNextAvailability, total: resp.data.total })
-    }
+    }*/
   } catch (err) {
     handleError(req, res, err)
   }
