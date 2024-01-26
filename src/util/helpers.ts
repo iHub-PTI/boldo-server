@@ -270,8 +270,9 @@ export async function doctorAvailability(req: express.Request, res: express.Resp
         if (typeOfAvailabilityParam != "") {
           availabilities = availabilities.filter((w: any) => w.appointmentType.includes(typeOfAvailabilityParam));
         }
-        const nextAvailability = await calculateNextAvailability(doctorId, idOrganization, accessToken, typeOfAvailabilityParam, patientType, dependentId);          
-        availabilitiesBlocks.push({ idOrganization: idOrganization, nameOrganization: commonOrganizations.data.find(org => org.id == idOrganization)?.name, availabilities, nextAvailability });  
+        //const nextAvailability = await calculateNextAvailability(doctorId, idOrganization, accessToken, typeOfAvailabilityParam, patientType, dependentId);          
+        //availabilitiesBlocks.push({ idOrganization: idOrganization, nameOrganization: commonOrganizations.data.find(org => org.id == idOrganization)?.name, availabilities, nextAvailability });  
+        availabilitiesBlocks.push({ idOrganization: idOrganization, nameOrganization: commonOrganizations.data.find(org => org.id == idOrganization)?.name, availabilities });  
       }
     } catch (err) {
       console.log(err)
