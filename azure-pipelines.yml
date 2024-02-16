@@ -12,7 +12,7 @@ resources:
 
 variables:
   # Container registry service connection established during pipeline creation
-  dockerRegistryServiceConnection: 'd9a765a7-3a99-4cc5-a7b5-85ddc2710133'
+  dockerRegistryServiceConnection: 'FhirServerTest-T'
   imageRepository: 'ihubptiboldoserver'
   containerRegistry: 'fhirservertest.azurecr.io'
   dockerfilePath: '$(Build.SourcesDirectory)/Dockerfile'
