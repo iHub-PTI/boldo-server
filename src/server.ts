@@ -279,6 +279,7 @@ app.get('/profile/doctor/organizations', keycloak.protect('realm:doctor'), async
 // GET /profile/doctor/patient/:patientId/encounters - Get all encounter by patientId
 // GET /profile/doctor/patient/:patientId/encounters-v2 - Get all encounter by patientId from ElasticSearch server
 // GET /profile/doctor/patient/:patientId/encounters/:encounterId - Get summary encounter by id
+// POST /profile/doctor/patient/:patientId/report - Report patient with suspicious false identity
 
 //TODO: correct the path 
 app.get('/profile/doctor/relatedEncounters/Patient/:id/filterEncounterId/:encounterId', keycloak.protect('realm:doctor'), async (req, res) => {
@@ -383,6 +384,7 @@ app.get('/profile/doctor/patient/:patientId/encounters/:encounterId', keycloak.p
     handleError(req, res, err)
   }
 });
+
 app.get('/profile/doctor/patient/:patientId/encounter/:encounterId/studyOrders', keycloak.protect('realm:doctor'), async (req, res) => {
   if (!validate(req, res)) return
   const { patientId, encounterId } = req.params
@@ -395,6 +397,20 @@ app.get('/profile/doctor/patient/:patientId/encounter/:encounterId/studyOrders',
     handleError(req, res, err)
   }
 });
+
+app.post('/profile/doctor/patient/:patientId/report', keycloak.protect('realm:doctor'), async (req, res) => {
+  const payload = req.body
+  const { patientId } = req.params
+  try {
+    const resp =  await axios.post(`profile/doctor/patient/${patientId}/report?`, payload, {
+      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+    })
+    res.send(resp.data)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
+
 //
 // MANAGE Patient activation:
 // Routes for managing activation & patient from profile Doctor
