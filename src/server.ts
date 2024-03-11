@@ -1928,9 +1928,9 @@ app.get('/profile/patient/prescriptions', keycloak.protect('realm:patient'), asy
 
 app.get('/profile/patient/encounters/prescriptions', keycloak.protect('realm:patient'), 
 async (req, res) => {
-  const { start, end, doctors } = req.query as any;
   try {
-    const { data } = await axios.get<any[]>(`/profile/patient/encounters/prescriptions?start=${start}&end=&${end}&doctors=${doctors}`, {
+    let qParam = genericQueryParamsMaker(req.query)
+    const { data } = await axios.get<any[]>(`/profile/patient/encounters/prescriptions?${qParam? `${qParam}`: ''}`, {
       headers: { Authorization: `Bearer ${getAccessToken(req)}` },
     })
 
@@ -2086,9 +2086,9 @@ app.get('/profile/caretaker/dependent/:id/prescriptions', keycloak.protect('real
 
 app.get('/profile/caretaker/dependent/:id/encounters/prescriptions', keycloak.protect('realm:patient'), async (req, res) => {
   const { id } = req.params;
-  const { start, end, doctors } = req.query as any;
   try {
-    const { data } = await axios.get<iHub.Appointment[]>(`/profile/caretaker/dependent/${id}/encounters/prescriptions?start=${start}&end=&${end}&doctors=${doctors}`, {
+    let qParam = genericQueryParamsMaker(req.query)
+    const { data } = await axios.get<iHub.Appointment[]>(`/profile/caretaker/dependent/${id}/encounters/prescriptions?${qParam? `${qParam}`: ''}`, {
       headers: { Authorization: `Bearer ${getAccessToken(req)}` },
     })
 
