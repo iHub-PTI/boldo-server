@@ -1926,6 +1926,20 @@ app.get('/profile/patient/prescriptions', keycloak.protect('realm:patient'), asy
   }
 })
 
+app.get('/profile/patient/encounters/prescriptions', keycloak.protect('realm:patient'), 
+async (req, res) => {
+  const { start, end, doctors } = req.query as any;
+  try {
+    const { data } = await axios.get<any[]>(`/profile/patient/encounters/prescriptions?start=${start}&end=&${end}&doctors=${doctors}`, {
+      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+    })
+
+    res.send({ prescriptions: data })
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
+
 //
 // APPOINTMENTS for PATIENTS:
 // Protected Routes for managing profile information
