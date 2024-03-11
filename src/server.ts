@@ -1934,7 +1934,7 @@ async (req, res) => {
       headers: { Authorization: `Bearer ${getAccessToken(req)}` },
     })
 
-    res.send({ prescriptions: data })
+    res.send(data)
   } catch (err) {
     handleError(req, res, err)
   }
@@ -2079,6 +2079,20 @@ app.get('/profile/caretaker/dependent/:id/prescriptions', keycloak.protect('real
     })
 
     res.send({ prescriptions: data })
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
+
+app.get('/profile/caretaker/dependent/:id/encounters/prescriptions', keycloak.protect('realm:patient'), async (req, res) => {
+  const { id } = req.params;
+  const { start, end, doctors } = req.query as any;
+  try {
+    const { data } = await axios.get<iHub.Appointment[]>(`/profile/caretaker/dependent/${id}/encounters/prescriptions?start=${start}&end=&${end}&doctors=${doctors}`, {
+      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+    })
+
+    res.send(data)
   } catch (err) {
     handleError(req, res, err)
   }
