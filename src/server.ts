@@ -279,6 +279,7 @@ app.get('/profile/doctor/organizations', keycloak.protect('realm:doctor'), async
 // GET /profile/doctor/patient/:patientId/encounters - Get all encounter by patientId
 // GET /profile/doctor/patient/:patientId/encounters-v2 - Get all encounter by patientId from ElasticSearch server
 // GET /profile/doctor/patient/:patientId/encounters/:encounterId - Get summary encounter by id
+// POST /profile/doctor/patient/:patientId/report - Report patient with suspicious false identity
 
 //TODO: correct the path 
 app.get('/profile/doctor/relatedEncounters/Patient/:id/filterEncounterId/:encounterId', keycloak.protect('realm:doctor'), async (req, res) => {
@@ -383,6 +384,7 @@ app.get('/profile/doctor/patient/:patientId/encounters/:encounterId', keycloak.p
     handleError(req, res, err)
   }
 });
+
 app.get('/profile/doctor/patient/:patientId/encounter/:encounterId/studyOrders', keycloak.protect('realm:doctor'), async (req, res) => {
   if (!validate(req, res)) return
   const { patientId, encounterId } = req.params
@@ -395,6 +397,20 @@ app.get('/profile/doctor/patient/:patientId/encounter/:encounterId/studyOrders',
     handleError(req, res, err)
   }
 });
+
+app.post('/profile/doctor/patient/:patientId/report', keycloak.protect('realm:doctor'), async (req, res) => {
+  const payload = req.body
+  const { patientId } = req.params
+  try {
+    const resp =  await axios.post(`profile/doctor/patient/${patientId}/report?`, payload, {
+      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+    })
+    res.send(resp.data)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
+
 //
 // MANAGE Patient activation:
 // Routes for managing activation & patient from profile Doctor
@@ -688,6 +704,7 @@ app.get('/profile/doctor/studyResults', keycloak.protect('realm:doctor'), async 
 // GET /profile/patient/encounter/:id/serviceRequests - obtaint a list of study order for an encounter
 // GET /profile/patient/serviceRequest/:id - obtaint a study order by id
 // GET /profile/patient/serviceRequest/reports?ids=[list ids] - Prints OrderStudy by a list of Ids
+// GET /profile/patient/prescriptions/reports?ids=[list encounter ids] - Prints prescriptions instructions
 
 app.get('/profile/patient/serviceRequests', keycloak.protect('realm:patient'), async (req, res) => {
   try {
@@ -751,6 +768,39 @@ app.get('/profile/patient/serviceRequests/reports',
       }
     })
 
+app.get('/profile/patient/prescriptions/reports',
+    cors({ origin: AllowedOrigins, credentials: true, exposedHeaders:['Content-Disposition'] }),
+    keycloak.protect('realm:patient'), async (req, res) => {
+      if (!validate(req, res)) return
+
+      let reportsParam = genericQueryParamsMaker(req.query)
+
+      try {
+        const response = await axios.get(`/profile/patient/prescriptions/reports?${reportsParam? `${reportsParam}`: ''}`, {
+          responseType: 'arraybuffer',
+          headers: {
+            Authorization: `Bearer ${getAccessToken(req)}`,
+            'Content-Type': 'application/json',
+            'Accept': 'application/pdf'
+          },
+        })
+
+        if (response.status===200){ //There's a PDF in the buffer
+          let filename = response.headers['content-disposition']?
+              response.headers['content-disposition'].split('filename="')[1].split('.')[0]:'consulta' //obtains file name from header if exist
+
+          res.setHeader('Content-Type', 'application/pdf');
+          res.setHeader('Content-Disposition', `attachment; filename=${filename}.pdf`);
+          res.setHeader('Content-Length', response.data.length)
+          res.end(response.data)
+        }else{ // Other error codes: 204, 403, 404, 500
+          res.sendStatus(response.status);
+        }
+      } catch (err) {
+        handleError(req, res, err)
+      }
+    })
+
 
 // MANAGE Service request from patient caretaker profile:
 // Routes for managing dependent patient  service request
@@ -758,6 +808,7 @@ app.get('/profile/patient/serviceRequests/reports',
 // GET /profile/caretaker/dependent/:idDependent/encounter/:id/serviceRequests - obtains a list of study order for an encounter
 // GET /profile/caretaker/dependent/:idDependent/serviceRequest/:id - obtains a study order by id
 // GET /profile/caretaker/dependent/:idDependent/serviceRequest/reports?ids=[list ids] - Prints OrderStudy from Dependent
+// GET /profile/caretaker/dependent/:idDependent/prescriptions/reports?ids=[list encounter ids] - Prints prescriptions instructions from Dependent
 
 app.get('/profile/caretaker/dependent/:idDependent/serviceRequests', keycloak.protect('realm:patient'), async (req, res) => {
   const { idDependent } = req.params
@@ -823,6 +874,40 @@ app.get('/profile/caretaker/dependent/:idDependent/serviceRequests/reports',
       }
     })
 
+app.get('/profile/caretaker/dependent/:idDependent/prescriptions/reports',
+    cors({ origin: AllowedOrigins, credentials: true, exposedHeaders:['Content-Disposition'] }),
+    keycloak.protect('realm:patient'), async (req, res) => {
+      const { idDependent } = req.params
+      if (!validate(req, res)) return
+
+      let reportsParam = genericQueryParamsMaker(req.query)
+
+      try {
+        const response = await axios.get(`/profile/caretaker/dependent/${idDependent}/prescriptions/reports?${reportsParam? `${reportsParam}`: ''}`, {
+          responseType: 'arraybuffer',
+          headers: {
+            Authorization: `Bearer ${getAccessToken(req)}`,
+            'Content-Type': 'application/json',
+            'Accept': 'application/pdf'
+          },
+        })
+
+        if (response.status===200){ //There's a PDF in the buffer
+          let filename = response.headers['content-disposition']?
+              response.headers['content-disposition'].split('filename="')[1].split('.')[0]:'consulta' //obtains file name from header if exist
+
+          res.setHeader('Content-Type', 'application/pdf');
+          res.setHeader('Content-Disposition', `attachment; filename=${filename}.pdf`);
+          res.setHeader('Content-Length', response.data.length)
+          res.end(response.data)
+        }else{ // Other error codes: 204, 403, 404, 500
+          res.sendStatus(response.status);
+        }
+      } catch (err) {
+        handleError(req, res, err)
+      }
+    })
+
 
 //
 // PATIENT PROFILE:
@@ -856,7 +941,10 @@ app.post('/profile/patient', keycloak.protect('realm:patient'), async (req, res)
 
 app.get('/profile/patient/organizations', keycloak.protect('realm:patient'), async (req, res) => {
   try {
-    const resp = await axios.get(`/profile/patient/organizations${req.query.subscribed ? `?subscribed=${req.query.subscribed}` : ''}`, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+
+    let allQueryParams = genericQueryParamsMaker(req.query)
+    
+    const resp = await axios.get(`/profile/patient/organizations?${allQueryParams? `${allQueryParams}`: ''}`, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
     res.status(resp.status).send(resp.data)
   } catch (err) {
     handleError(req, res, err)
@@ -976,7 +1064,10 @@ app.put('/profile/patient/inactivate/caretaker/:id', keycloak.protect('realm:pat
 app.get('/profile/caretaker/dependent/:idDependent/organizations', keycloak.protect('realm:patient'), async (req, res) => {
   const { idDependent } = req.params
   try {
-    const resp = await axios.get(`/profile/caretaker/dependent/${idDependent}/organizations${req.query.subscribed ? `?subscribed=${req.query.subscribed}` : ''}`, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
+
+    let allQueryParams = genericQueryParamsMaker(req.query)
+
+    const resp = await axios.get(`/profile/caretaker/dependent/${idDependent}/organizations?${allQueryParams ? `${allQueryParams}` : ''}`, { headers: { Authorization: `Bearer ${getAccessToken(req)}` } })
     res.status(resp.status).send(resp.data)
   } catch (err) {
     handleError(req, res, err)
@@ -1835,6 +1926,19 @@ app.get('/profile/patient/prescriptions', keycloak.protect('realm:patient'), asy
   }
 })
 
+app.get('/profile/patient/encounter/prescription', keycloak.protect('realm:patient'), 
+async (req, res) => {
+  try {
+    let qParam = genericQueryParamsMaker(req.query)
+    const { data } = await axios.get<any[]>(`/profile/patient/encounters/prescriptions?${qParam? `${qParam}`: ''}`, {
+      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+    })
+    res.send(data)
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
+
 //
 // APPOINTMENTS for PATIENTS:
 // Protected Routes for managing profile information
@@ -1974,6 +2078,20 @@ app.get('/profile/caretaker/dependent/:id/prescriptions', keycloak.protect('real
     })
 
     res.send({ prescriptions: data })
+  } catch (err) {
+    handleError(req, res, err)
+  }
+})
+
+app.get('/profile/caretaker/dependent/:id/encounter/prescription', keycloak.protect('realm:patient'), async (req, res) => {
+  const { id } = req.params;
+  try {
+    let qParam = genericQueryParamsMaker(req.query)
+    const { data } = await axios.get<any[]>(`/profile/caretaker/dependent/${id}/encounters/prescriptions?${qParam? `${qParam}`: ''}`, {
+      headers: { Authorization: `Bearer ${getAccessToken(req)}` },
+    })
+
+    res.send(data)
   } catch (err) {
     handleError(req, res, err)
   }
