@@ -37,7 +37,7 @@
     "jwks-rsa": "^1.10.1",
     "keycloak-connect": "^20.0.3",
     "mongoose": "^5.11.5",
-    "node-fetch": "^2.6.1",
+    "node-fetch": "^2.6.7",
     "querystring": "^0.2.0",
     "redis": "^3.0.2",
     "socket.io": "^2.3.0",
