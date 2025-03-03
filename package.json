@@ -33,7 +33,7 @@
     "express": "^4.17.1",
     "express-session": "^1.17.1",
     "express-validator": "^6.7.0",
-    "jsonwebtoken": "^8.5.1",
+    "jsonwebtoken": "^9.0.0",
     "jwks-rsa": "^1.10.1",
     "keycloak-connect": "^20.0.3",
     "mongoose": "^5.11.5",
